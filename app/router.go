@@ -46,6 +46,7 @@ func (r *Routes) BookLending() {
 		user := apiV1.Group("/user")
 		{
 			user.POST("/register", ctrlUser.Register)
+			user.POST("/login", ctrlUser.Login)
 		}
 	}
 }

@@ -94,3 +94,67 @@ func (cc *UserCtrl) Register(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, res)
 	return
 }
+
+func (cc *UserCtrl) Login(ctx *gin.Context) {
+	var (
+		logId     uuid.UUID
+		logPrefix string
+		req       request.Login
+		err       error
+
+		user models.Users
+	)
+	userRepo := repository.NewUserRepo(cc.DBBookLending)
+
+	logId = utils.GenerateLogId(ctx)
+	logPrefix = fmt.Sprintf("[%s][UserController][Login]", logId)
+
+	if err = ctx.BindJSON(&req); err != nil {
+		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; BindJSON ERROR: %s;", logPrefix, err.Error()))
+
+		res := response.Response(http.StatusBadRequest, utils.InvalidRequest, logId, nil)
+		res.Error = utils.ValidateError(err, reflect.TypeOf(req), "json")
+		ctx.JSON(http.StatusBadRequest, res)
+		return
+	}
+
+	user, err = userRepo.GetByEmail(req.Email)
+	if err != nil {
+		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; userRepo.GetByEmail; ERROR: %s;", logPrefix, err))
+		if errors.Is(err, gorm.ErrRecordNotFound) || reflect.DeepEqual(user, models.Users{}) {
+			res := response.Response(http.StatusBadRequest, utils.InvalidCred, logId, nil)
+			res.Errors = response.Errors{Code: http.StatusBadRequest, Message: utils.MsgCredential}
+			ctx.JSON(http.StatusBadRequest, res)
+			return
+		}
+
+		res := response.Response(http.StatusInternalServerError, utils.MsgFail, logId, nil)
+		res.Error = err.Error()
+		ctx.JSON(http.StatusBadRequest, res)
+		return
+	}
+
+	if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
+		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; bcrypt.CompareHashAndPassword; ERROR: %s;", logPrefix, err))
+
+		res := response.Response(http.StatusBadRequest, utils.InvalidCred, logId, nil)
+		res.Errors = response.Errors{Code: http.StatusBadRequest, Message: utils.MsgCredential}
+		ctx.JSON(http.StatusBadRequest, res)
+		return
+	}
+
+	token, err := utils.GenerateJwt(user.Id, logId.String())
+	if err != nil {
+		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; GenerateJwt; ERROR: %s;", logPrefix, err))
+
+		res := response.Response(http.StatusInternalServerError, utils.MsgFail, logId, nil)
+		res.Error = err.Error()
+		ctx.JSON(http.StatusBadRequest, res)
+		return
+	}
+
+	res := response.Response(http.StatusOK, "success", logId, fmt.Sprintf("token: %s", token))
+	utils.WriteLog(utils.LogLevelDebug, fmt.Sprintf("%s; Success: %+v;", logPrefix, utils.JsonEncode(token)))
+	ctx.JSON(http.StatusOK, res)
+	return
+}

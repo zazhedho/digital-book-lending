@@ -14,6 +14,7 @@ const (
 	MsgSuccess     = "Success"
 	MsgUpdated     = "Updated"
 	NoProperties   = "No properties to update has been provided in request. Please specify at least one property which needs to be updated."
+	InvalidCred    = "Invalid email or password"
 )
 
 // Redis Key

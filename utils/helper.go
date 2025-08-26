@@ -239,9 +239,9 @@ func mapValidateMessage(fe validator.FieldError) string {
 	case "alphanum":
 		return "Should be alphanumeric"
 	case "min":
-		return "Min " + fe.Param()
+		return "Minimum " + fe.Param()
 	case "max":
-		return "Max " + fe.Param()
+		return "Maximum " + fe.Param()
 	case "lte":
 		return "Should be less than " + fe.Param()
 	case "gte":

@@ -4,7 +4,6 @@ import (
 	"digital-book-lending/interfaces"
 	"digital-book-lending/models"
 	"digital-book-lending/utils"
-	"errors"
 
 	"gorm.io/gorm"
 )
@@ -27,7 +26,7 @@ func (r *repo) Store(m models.Users) error {
 }
 
 func (r *repo) GetByEmail(email string) (ret models.Users, err error) {
-	if err = r.DB.Where("email = ?", email).First(&ret).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+	if err = r.DB.Where("email = ?", email).First(&ret).Error; err != nil {
 		utils.WriteLog(utils.LogLevelError, "sqlUsers.GetByEmail; "+err.Error())
 		return models.Users{}, err
 	}
