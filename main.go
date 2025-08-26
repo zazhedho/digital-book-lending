@@ -1,0 +1,115 @@
+package main
+
+import (
+	"database/sql"
+	"digital-book-lending/app"
+	"digital-book-lending/database"
+	"digital-book-lending/utils"
+	"flag"
+	"fmt"
+	"log"
+	"net"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/mysql"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/joho/godotenv"
+	"github.com/redis/go-redis/v9"
+)
+
+func FailOnError(err error, msg string) {
+	if err != nil {
+		log.Fatalf("%s: %s", msg, err)
+	}
+}
+
+func main() {
+	var (
+		err         error
+		sqlBookLend *sql.DB
+	)
+	if timeZone, err := time.LoadLocation("Asia/Jakarta"); err != nil {
+		utils.WriteLog(utils.LogLevelError, "time.LoadLocation - Error: "+err.Error())
+	} else {
+		time.Local = timeZone
+	}
+
+	if err = godotenv.Load(".env"); err != nil && os.Getenv("APP_ENV") == "" {
+		log.Fatalf("Error app environment")
+	}
+
+	myAddr := "unknown"
+	addrs, _ := net.InterfaceAddrs()
+	for _, address := range addrs {
+		// check the address type and if it is not a loopback the display it
+		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				myAddr = ipnet.IP.String()
+				break
+			}
+		}
+	}
+
+	myAddr += strings.Repeat(" ", 15-len(myAddr))
+	os.Setenv("ServerIP", myAddr)
+	utils.WriteLog(utils.LogLevelInfo, "Server IP: "+myAddr)
+
+	var port, appName string
+	flag.StringVar(&port, "port", os.Getenv("PORT"), "port of the service")
+	flag.StringVar(&appName, "appname", os.Getenv("APP_NAME"), "service name")
+	flag.Parse()
+	utils.WriteLog(utils.LogLevelInfo, "APP: "+appName+"; PORT: "+port)
+
+	//Load app config
+	confID := utils.GetAppConf("CONFIG_ID", "", nil)
+	utils.WriteLog(utils.LogLevelDebug, fmt.Sprintf("ConfigID: %s", confID))
+
+	runMigration()
+	routes := app.NewRoutes()
+
+	//redis conn
+	rdbVal, _ := strconv.Atoi(utils.GetEnv("REDIS_DB_CACHE", "").(string))
+	routes.RdbCache = redis.NewClient(&redis.Options{
+		Addr:     utils.GetEnv("REDIS_ADDR", "").(string),
+		Password: utils.GetEnv("REDIS_PWD", "").(string),
+		DB:       rdbVal,
+	})
+
+	rdbVal, _ = strconv.Atoi(utils.GetEnv("REDIS_DB_TEMP", "1").(string))
+	routes.RdbTemp = redis.NewClient(&redis.Options{
+		Addr:     utils.GetEnv("REDIS_ADDR", "").(string),
+		Password: utils.GetEnv("REDIS_PWD", "").(string),
+		DB:       rdbVal,
+	})
+
+	routes.DBBookLending, sqlBookLend = database.ConnDb()
+	defer sqlBookLend.Close()
+
+	routes.BookLending()
+	err = routes.App.Run(fmt.Sprintf(":%s", port))
+	FailOnError(err, "Failed run service")
+}
+
+func runMigration() {
+	m, err := migrate.New(
+		utils.GetEnv("PATH_MIGRATE", "file://migrations").(string),
+		fmt.Sprintf("mysql://%s:%s@tcp(%s:%s)/%s",
+			utils.GetEnv("DB_USERNAME", "").(string),
+			utils.GetEnv("DB_PASS", "").(string),
+			utils.GetEnv("DB_HOST", "").(string),
+			utils.GetEnv("DB_PORT", "").(string),
+			utils.GetEnv("DB_NAME", "").(string)),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err := m.Up(); err != nil && err.Error() != "no change" {
+		log.Fatal(err)
+	}
+	utils.WriteLog(utils.LogLevelInfo, "Migration Success")
+}
