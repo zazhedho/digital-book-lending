@@ -8,4 +8,5 @@ type Book interface {
 	Delete(m models.Book) (int64, error)
 	SoftDelete(m models.Book, data interface{}) (int64, error)
 	GetByIsbn(isbn string) (models.Book, error)
+	Fetch(page, limit int, orderBy, orderDir, search string) ([]models.Book, int64, error)
 }

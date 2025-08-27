@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -202,6 +203,53 @@ func (c *BookCtrl) Delete(ctx *gin.Context) {
 
 	res := response.Response(http.StatusOK, fmt.Sprintf("Book with ID: '%s' deleted successfully", id), logId, nil)
 	utils.WriteLog(utils.LogLevelDebug, fmt.Sprintf("%s; Book with ID: '%s' deleted successfully", logPrefix, id))
+	ctx.JSON(http.StatusOK, res)
+	return
+}
+
+func (c *BookCtrl) List(ctx *gin.Context) {
+	var (
+		logId     uuid.UUID
+		logPrefix string
+	)
+	bookRepo := repository.NewBookRepo(c.DBBookLending)
+	authData := getAuthData(ctx)
+	username := utils.InterfaceString(authData["username"])
+
+	logId = utils.GenerateLogId(ctx)
+	logPrefix = fmt.Sprintf("[%s][Book][List][%s]", logId, username)
+
+	//query parameters
+	page, err := strconv.Atoi(ctx.DefaultQuery("page", "1"))
+	if err != nil || page < 1 {
+		page = 1
+	}
+	limit, err := strconv.Atoi(ctx.DefaultQuery("limit", "10"))
+	if err != nil || limit < 1 {
+		limit = 10
+	}
+	orderBy := ctx.DefaultQuery("order_by", "updated_at")
+	orderDir := ctx.DefaultQuery("order_direction", "desc")
+	search := ctx.Query("search")
+
+	books, totalData, err := bookRepo.Fetch(page, limit, orderBy, orderDir, search)
+	if err != nil {
+		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; Fetch; Error: %+v", logPrefix, err))
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			res := response.Response(http.StatusNotFound, utils.NotFound, logId, nil)
+			res.Error = "Book data not found"
+			ctx.JSON(http.StatusNotFound, res)
+			return
+		}
+
+		res := response.Response(http.StatusInternalServerError, utils.MsgFail, logId, nil)
+		res.Error = err.Error()
+		ctx.JSON(http.StatusInternalServerError, res)
+		return
+	}
+
+	res := response.PaginationResponse(http.StatusOK, int(totalData), page, limit, logId, books)
+	utils.WriteLog(utils.LogLevelInfo, fmt.Sprintf("%s; Success; List: %v", logPrefix, utils.JsonEncode(books)))
 	ctx.JSON(http.StatusOK, res)
 	return
 }

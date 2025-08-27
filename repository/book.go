@@ -4,6 +4,8 @@ import (
 	"digital-book-lending/interfaces"
 	"digital-book-lending/models"
 	"digital-book-lending/utils"
+	"fmt"
+	"strings"
 
 	"gorm.io/gorm"
 )
@@ -64,4 +66,55 @@ func (r *repoBook) GetByIsbn(isbn string) (ret models.Book, err error) {
 	}
 
 	return ret, nil
+}
+
+func (r *repoBook) Fetch(page, limit int, orderBy, orderDir, search string) (ret []models.Book, totalData int64, err error) {
+	query := r.DB.Table(models.Book{}.TableName()).Where("deleted_at IS NULL")
+
+	if strings.TrimSpace(search) != "" {
+		searchPattern := "%" + search + "%"
+		query = query.Where("LOWER(title) LIKE LOWER(?) OR LOWER(author) LIKE LOWER(?) OR LOWER(isbn) LIKE LOWER(?)", searchPattern, searchPattern, searchPattern)
+	}
+
+	if err := query.Count(&totalData).Error; err != nil {
+		return nil, 0, err
+	}
+
+	if orderBy != "" && orderDir != "" {
+		validColumns := map[string]bool{
+			"title":      true,
+			"author":     true,
+			"isbn":       true,
+			"category":   true,
+			"quantity":   true,
+			"created_at": true,
+			"updated_at": true,
+		}
+
+		validDirections := map[string]bool{
+			"asc":  true,
+			"desc": true,
+		}
+
+		if _, ok := validColumns[orderBy]; !ok {
+			return nil, 0, fmt.Errorf("invalid orderBy column: %s", orderBy)
+		}
+		if _, ok := validDirections[orderDir]; !ok {
+			return nil, 0, fmt.Errorf("invalid orderDir: %s", orderDir)
+		}
+
+		query = query.Order(fmt.Sprintf("%s %s", orderBy, orderDir))
+	}
+
+	if limit > 0 {
+		offset := (page - 1) * limit
+		query = query.Offset(offset).Limit(limit)
+	}
+
+	if err = query.Find(&ret).Error; err != nil {
+		utils.WriteLog(utils.LogLevelError, "sqlBooks.Fetch; "+err.Error())
+		return ret, 0, err
+	}
+
+	return ret, totalData, nil
 }

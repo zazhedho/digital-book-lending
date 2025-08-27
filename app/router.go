@@ -44,17 +44,23 @@ func (r *Routes) BookLending() {
 
 	apiV1 := r.App.Group("/api/v1")
 	{
+		// user route
 		user := apiV1.Group("/user")
 		{
 			user.POST("/register", ctrlUser.Register)
 			user.POST("/login", ctrlUser.Login)
 		}
 
-		book := apiV1.Group("/books").Use(r.AuthMiddleware())
+		// book route
+		book := apiV1.Group("/books")
 		{
-			book.POST("", r.RoleMiddleware(utils.RoleAdmin), ctrlBook.Create)
-			book.PUT("/update/:id", r.RoleMiddleware(utils.RoleAdmin), ctrlBook.Update)
-			book.DELETE("delete/:id", r.RoleMiddleware(utils.RoleAdmin), ctrlBook.Delete)
+			book.GET("", ctrlBook.List)
+			adminBook := book.Group("").Use(r.AuthMiddleware(), r.RoleMiddleware(utils.RoleAdmin))
+			{
+				adminBook.POST("", ctrlBook.Create)
+				adminBook.PUT("/update/:id", ctrlBook.Update)
+				adminBook.DELETE("delete/:id", ctrlBook.Delete)
+			}
 		}
 	}
 }
