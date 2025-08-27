@@ -270,3 +270,18 @@ func ValidateError(err error, reflectType reflect.Type, tagName string) []Valida
 	}
 	return []ValidateMessage{{"", err.Error()}}
 }
+
+func InterfaceString(data interface{}) string {
+	if data == nil {
+		return ""
+	}
+	switch v := data.(type) {
+	case string:
+		return v
+	case []byte:
+		return string(v)
+	default:
+		bytes, _ := json.Marshal(data)
+		return string(bytes)
+	}
+}

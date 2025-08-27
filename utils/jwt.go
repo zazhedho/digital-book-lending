@@ -12,13 +12,15 @@ import (
 )
 
 type AppClaims struct {
-	UserId string `json:"user_id"`
+	UserId   string `json:"user_id"`
+	Username string `json:"username"`
 	*jwt.RegisteredClaims
 }
 
-func GenerateJwt(userId, logId string) (string, error) {
+func GenerateJwt(userId, username, logId string) (string, error) {
 	claims := AppClaims{
-		UserId: userId,
+		UserId:   userId,
+		Username: username,
 		RegisteredClaims: &jwt.RegisteredClaims{
 			ID:        logId,
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * time.Duration(GetEnv("JWT_EXP", 24).(int)))),
@@ -29,7 +31,7 @@ func GenerateJwt(userId, logId string) (string, error) {
 	//	generate auth
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &claims)
 
-	signedToken, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
+	signedToken, err := token.SignedString([]byte(os.Getenv("JWT_KEY")))
 	if err != nil {
 		return "", err
 	}

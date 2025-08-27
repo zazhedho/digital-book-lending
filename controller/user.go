@@ -143,7 +143,7 @@ func (cc *UserCtrl) Login(ctx *gin.Context) {
 		return
 	}
 
-	token, err := utils.GenerateJwt(user.Id, logId.String())
+	token, err := utils.GenerateJwt(user.Id, user.Name, logId.String())
 	if err != nil {
 		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; GenerateJwt; ERROR: %s;", logPrefix, err))
 
