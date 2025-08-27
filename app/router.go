@@ -56,6 +56,7 @@ func (r *Routes) BookLending() {
 		book := apiV1.Group("/books").Use(r.AuthMiddleware())
 		{
 			book.POST("", ctrlBook.Create)
+			book.POST("/update/:id", ctrlBook.Update)
 		}
 	}
 }
