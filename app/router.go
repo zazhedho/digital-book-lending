@@ -52,9 +52,9 @@ func (r *Routes) BookLending() {
 
 		book := apiV1.Group("/books").Use(r.AuthMiddleware())
 		{
-			book.POST("", ctrlBook.Create)
-			book.PUT("/update/:id", ctrlBook.Update)
-			book.DELETE("delete/:id", ctrlBook.Delete)
+			book.POST("", r.RoleMiddleware(utils.RoleAdmin), ctrlBook.Create)
+			book.PUT("/update/:id", r.RoleMiddleware(utils.RoleAdmin), ctrlBook.Update)
+			book.DELETE("delete/:id", r.RoleMiddleware(utils.RoleAdmin), ctrlBook.Delete)
 		}
 	}
 }
@@ -62,17 +62,12 @@ func (r *Routes) BookLending() {
 func (r *Routes) AuthMiddleware() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var (
-			ok        bool
 			err       error
 			logId     uuid.UUID
 			logPrefix string
 		)
 
-		if logId, ok = ctx.Value(utils.CtxKeyId).(uuid.UUID); !ok {
-			if logId, err = uuid.NewV7(); err != nil {
-				logId = uuid.New()
-			}
-		}
+		logId = utils.GenerateLogId(ctx)
 		logPrefix = fmt.Sprintf("[%s][AuthMiddleware]", logId)
 
 		tokenString, dataJWT, err := utils.JwtClaims(ctx)
@@ -87,6 +82,55 @@ func (r *Routes) AuthMiddleware() gin.HandlerFunc {
 
 		ctx.Set(utils.CtxKeyAuthData, dataJWT)
 		ctx.Set("token", tokenString)
+
+		ctx.Next()
+	}
+}
+
+func (r *Routes) RoleMiddleware(allowedRoles ...string) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var (
+			logId     uuid.UUID
+			logPrefix string
+		)
+
+		logId = utils.GenerateLogId(ctx)
+		logPrefix = fmt.Sprintf("[%s][RoleMiddleware]", logId)
+
+		authData, exists := ctx.Get(utils.CtxKeyAuthData)
+		if !exists {
+			utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; AuthData not found", logPrefix))
+			res := response.Response(http.StatusForbidden, utils.MsgFail, logId, nil)
+			res.Error = "auth data not found"
+			ctx.AbortWithStatusJSON(http.StatusForbidden, res)
+			return
+		}
+		dataJWT := authData.(map[string]interface{})
+
+		userRole, ok := dataJWT["role"].(string)
+		if !ok {
+			utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; there is no role user", logPrefix))
+			res := response.Response(http.StatusForbidden, utils.MsgFail, logId, nil)
+			res.Error = "there is no role user"
+			ctx.AbortWithStatusJSON(http.StatusForbidden, res)
+			return
+		}
+
+		isAllowed := false
+		for _, role := range allowedRoles {
+			if userRole == role {
+				isAllowed = true
+				break
+			}
+		}
+
+		if !isAllowed {
+			utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; User with role '%s' tried to access a restricted route;", logPrefix, userRole))
+			res := response.Response(http.StatusForbidden, utils.MsgFail, logId, nil)
+			res.Errors = response.Errors{Code: http.StatusForbidden, Message: utils.AccessDenied}
+			ctx.AbortWithStatusJSON(http.StatusForbidden, res)
+			return
+		}
 
 		ctx.Next()
 	}

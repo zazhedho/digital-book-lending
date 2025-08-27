@@ -66,12 +66,14 @@ func (cc *UserCtrl) Register(ctx *gin.Context) {
 		Name:      req.Name,
 		Email:     req.Email,
 		Password:  string(hashedPwd),
+		Role:      utils.RoleMember,
 		CreatedAt: time.Now(),
 	}
 
 	if err = userRepo.Store(user); err != nil {
 		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; userRepo.Store; Error: %+v", logPrefix, err))
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; Error: email already exists", logPrefix))
 			res := response.Response(http.StatusBadRequest, utils.MsgExists, logId, nil)
 			res.Errors = response.Errors{Code: http.StatusBadRequest, Message: "email already exists"}
 			ctx.JSON(http.StatusBadRequest, res)
@@ -138,7 +140,7 @@ func (cc *UserCtrl) Login(ctx *gin.Context) {
 		return
 	}
 
-	token, err := utils.GenerateJwt(user.Id, user.Name, logId.String())
+	token, err := utils.GenerateJwt(&user, logId.String())
 	if err != nil {
 		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; GenerateJwt; ERROR: %s;", logPrefix, err))
 

@@ -9,6 +9,7 @@ type Users struct {
 	Name      string     `json:"name" gorm:"column:name"`
 	Email     string     `json:"email" gorm:"column:email"`
 	Password  string     `json:"-" gorm:"column:password"`
+	Role      string     `json:"role" gorm:"column:role"`
 	CreatedAt time.Time  `json:"created_at" gorm:"column:created_at"`
 	UpdatedAt *time.Time `json:"updated_at" gorm:"column:updated_at"`
 }

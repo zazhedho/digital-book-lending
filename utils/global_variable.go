@@ -15,6 +15,7 @@ const (
 	MsgUpdated     = "Updated"
 	NoProperties   = "No properties to update has been provided in request. Please specify at least one property which needs to be updated."
 	InvalidCred    = "Invalid email or password"
+	AccessDenied   = "Access denied. You do not have the required permissions."
 )
 
 // Redis Key
@@ -39,4 +40,9 @@ const (
 	LayoutTimestamp   = "2006-01-02 15:04:05.000000000"
 	LayoutTimeStamp   = "2006-01-02 15:04:05.000"
 	LayoutDateTimeH   = "2006-01-02 15"
+)
+
+const (
+	RoleAdmin  = "admin"
+	RoleMember = "member"
 )

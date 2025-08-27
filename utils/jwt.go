@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"digital-book-lending/models"
 	"errors"
 	"fmt"
 	"os"
@@ -14,13 +15,15 @@ import (
 type AppClaims struct {
 	UserId   string `json:"user_id"`
 	Username string `json:"username"`
+	Role     string `json:"role"`
 	*jwt.RegisteredClaims
 }
 
-func GenerateJwt(userId, username, logId string) (string, error) {
+func GenerateJwt(user *models.Users, logId string) (string, error) {
 	claims := AppClaims{
-		UserId:   userId,
-		Username: username,
+		UserId:   user.Id,
+		Username: user.Name,
+		Role:     user.Role,
 		RegisteredClaims: &jwt.RegisteredClaims{
 			ID:        logId,
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * time.Duration(GetEnv("JWT_EXP", 24).(int)))),
