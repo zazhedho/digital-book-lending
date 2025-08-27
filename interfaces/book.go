@@ -6,5 +6,6 @@ type Book interface {
 	Store(m models.Book) error
 	Update(m models.Book, data interface{}) (int64, error)
 	Delete(m models.Book) (int64, error)
+	SoftDelete(m models.Book, data interface{}) (int64, error)
 	GetByIsbn(isbn string) (models.Book, error)
 }

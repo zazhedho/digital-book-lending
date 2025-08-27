@@ -14,22 +14,17 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
 type UserCtrl struct {
 	DBBookLending *gorm.DB
-	RdbCache      *redis.Client
-	RdbTemp       *redis.Client
 }
 
-func NewUserController(dbBookLend *gorm.DB, rdbCache, rdbTemp *redis.Client) *UserCtrl {
+func NewUserController(dbBookLend *gorm.DB) *UserCtrl {
 	return &UserCtrl{
 		DBBookLending: dbBookLend,
-		RdbCache:      rdbCache,
-		RdbTemp:       rdbTemp,
 	}
 }
 

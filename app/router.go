@@ -10,15 +10,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
 type Routes struct {
 	App           *gin.Engine
 	DBBookLending *gorm.DB
-	RdbCache      *redis.Client
-	RdbTemp       *redis.Client
 }
 
 func NewRoutes() *Routes {
@@ -42,8 +39,8 @@ func NewRoutes() *Routes {
 }
 
 func (r *Routes) BookLending() {
-	ctrlUser := controller.NewUserController(r.DBBookLending, r.RdbCache, r.RdbTemp)
-	ctrlBook := controller.NewBookController(r.DBBookLending, r.RdbCache)
+	ctrlUser := controller.NewUserController(r.DBBookLending)
+	ctrlBook := controller.NewBookController(r.DBBookLending)
 
 	apiV1 := r.App.Group("/api/v1")
 	{
@@ -56,7 +53,8 @@ func (r *Routes) BookLending() {
 		book := apiV1.Group("/books").Use(r.AuthMiddleware())
 		{
 			book.POST("", ctrlBook.Create)
-			book.POST("/update/:id", ctrlBook.Update)
+			book.PUT("/update/:id", ctrlBook.Update)
+			book.DELETE("delete/:id", ctrlBook.Delete)
 		}
 	}
 }

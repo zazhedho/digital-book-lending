@@ -28,7 +28,7 @@ func (r *repoBook) Store(m models.Book) error {
 }
 
 func (r *repoBook) Update(m models.Book, data interface{}) (int64, error) {
-	res := r.DB.Table(m.TableName()).Where("id = ?", m.ID).Updates(data)
+	res := r.DB.Table(m.TableName()).Where("id = ? AND deleted_at IS NULL", m.ID).Updates(data)
 	if res.Error != nil {
 		utils.WriteLog(utils.LogLevelError, "sqlBook.Update; "+res.Error.Error())
 		return 0, res.Error
@@ -38,12 +38,23 @@ func (r *repoBook) Update(m models.Book, data interface{}) (int64, error) {
 }
 
 func (r *repoBook) Delete(m models.Book) (int64, error) {
-	result := r.DB.Delete(&m)
+	result := r.DB.Where("id = ?", m.ID).Delete(&m)
 	if result.Error != nil {
+		utils.WriteLog(utils.LogLevelError, "sqlBook.Delete; "+result.Error.Error())
 		return 0, result.Error
 	}
 
 	return result.RowsAffected, nil
+}
+
+func (r *repoBook) SoftDelete(m models.Book, data interface{}) (int64, error) {
+	res := r.DB.Table(m.TableName()).Where("id = ?", m.ID).Updates(data)
+	if res.Error != nil {
+		utils.WriteLog(utils.LogLevelError, "sqlBook.SoftDelete; "+res.Error.Error())
+		return 0, res.Error
+	}
+
+	return res.RowsAffected, nil
 }
 
 func (r *repoBook) GetByIsbn(isbn string) (ret models.Book, err error) {

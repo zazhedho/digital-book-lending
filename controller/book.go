@@ -15,19 +15,16 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
 type BookCtrl struct {
 	DBBookLending *gorm.DB
-	RdbCache      *redis.Client
 }
 
-func NewBookController(dbBookLend *gorm.DB, rdbCache *redis.Client) *BookCtrl {
+func NewBookController(dbBookLend *gorm.DB) *BookCtrl {
 	return &BookCtrl{
 		DBBookLending: dbBookLend,
-		RdbCache:      rdbCache,
 	}
 }
 
@@ -160,6 +157,51 @@ func (c *BookCtrl) Update(ctx *gin.Context) {
 
 	res := response.Response(http.StatusOK, fmt.Sprintf("Book with ID: '%s' updated successfully", id), logId, nil)
 	utils.WriteLog(utils.LogLevelDebug, fmt.Sprintf("%s; Book with ID: '%s' updated successfully; Data: %v", logPrefix, id, utils.JsonEncode(book)))
+	ctx.JSON(http.StatusOK, res)
+	return
+}
+
+func (c *BookCtrl) Delete(ctx *gin.Context) {
+	var (
+		logId     uuid.UUID
+		logPrefix string
+		err       error
+	)
+	bookRepo := repository.NewBookRepo(c.DBBookLending)
+	authData := getAuthData(ctx)
+	username := utils.InterfaceString(authData["username"])
+
+	logId = utils.GenerateLogId(ctx)
+	logPrefix = fmt.Sprintf("[%s][Book][Delete]", logId)
+
+	id, err := functions.ValidateUUID(ctx, logPrefix, logId)
+	if err != nil {
+		return
+	}
+	logPrefix += fmt.Sprintf("[%s][%s]", id, username)
+
+	// hard delete
+	//if _, err = bookRepo.Delete(models.Book{ID: id}); err != nil {
+	//	utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; bookRepo.Delete; Error: %+v", logPrefix, err))
+	//
+	//	res := response.Response(http.StatusInternalServerError, utils.MsgFail, logId, nil)
+	//	res.Error = err.Error()
+	//	ctx.JSON(http.StatusInternalServerError, res)
+	//	return
+	//}
+
+	// soft delete
+	if _, err = bookRepo.SoftDelete(models.Book{ID: id}, map[string]interface{}{"deleted_at": time.Now(), "deleted_by": username}); err != nil {
+		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; bookRepo.Delete; Error: %+v", logPrefix, err))
+
+		res := response.Response(http.StatusInternalServerError, utils.MsgFail, logId, nil)
+		res.Error = err.Error()
+		ctx.JSON(http.StatusInternalServerError, res)
+		return
+	}
+
+	res := response.Response(http.StatusOK, fmt.Sprintf("Book with ID: '%s' deleted successfully", id), logId, nil)
+	utils.WriteLog(utils.LogLevelDebug, fmt.Sprintf("%s; Book with ID: '%s' deleted successfully", logPrefix, id))
 	ctx.JSON(http.StatusOK, res)
 	return
 }

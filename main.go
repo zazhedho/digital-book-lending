@@ -10,7 +10,6 @@ import (
 	"log"
 	"net"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -18,7 +17,6 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/mysql"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/joho/godotenv"
-	"github.com/redis/go-redis/v9"
 )
 
 func FailOnError(err error, msg string) {
@@ -70,21 +68,6 @@ func main() {
 
 	runMigration()
 	routes := app.NewRoutes()
-
-	//redis conn
-	rdbVal, _ := strconv.Atoi(utils.GetEnv("REDIS_DB_CACHE", "").(string))
-	routes.RdbCache = redis.NewClient(&redis.Options{
-		Addr:     utils.GetEnv("REDIS_ADDR", "").(string),
-		Password: utils.GetEnv("REDIS_PWD", "").(string),
-		DB:       rdbVal,
-	})
-
-	rdbVal, _ = strconv.Atoi(utils.GetEnv("REDIS_DB_TEMP", "1").(string))
-	routes.RdbTemp = redis.NewClient(&redis.Options{
-		Addr:     utils.GetEnv("REDIS_ADDR", "").(string),
-		Password: utils.GetEnv("REDIS_PWD", "").(string),
-		DB:       rdbVal,
-	})
 
 	routes.DBBookLending, sqlBookLend = database.ConnDb()
 	defer sqlBookLend.Close()
