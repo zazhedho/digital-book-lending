@@ -8,6 +8,15 @@ import (
 	"github.com/google/uuid"
 )
 
+// Success is an alias for Api for swag documentation.
+type Success Api
+
+// Error is an alias for Api for swag documentation.
+type Error Api
+
+// Pagination is an alias for PaginatedResponse for swag documentation.
+type Pagination PaginatedResponse
+
 type Errors struct {
 	Code    int    `json:"code,omitempty"`
 	Message string `json:"message,omitempty"`

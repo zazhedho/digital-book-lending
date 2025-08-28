@@ -37,6 +37,18 @@ func getAuthData(ctx *gin.Context) map[string]interface{} {
 	return nil
 }
 
+// Create godoc
+// @Summary Create a new book
+// @Description Create a new book
+// @Tags books
+// @Accept  json
+// @Produce  json
+// @Param book body request.AddBook true "Book details"
+// @Success 201 {object} response.Success
+// @Failure 400 {object} response.Error
+// @Failure 500 {object} response.Error
+// @Security ApiKeyAuth
+// @Router /books [post]
 func (c *BookCtrl) Create(ctx *gin.Context) {
 	var (
 		logId     uuid.UUID
@@ -94,6 +106,20 @@ func (c *BookCtrl) Create(ctx *gin.Context) {
 	return
 }
 
+// Update godoc
+// @Summary Update a book
+// @Description Update a book
+// @Tags books
+// @Accept  json
+// @Produce  json
+// @Param id path string true "Book ID"
+// @Param book body request.UpdateBook true "Book details"
+// @Success 200 {object} response.Success
+// @Failure 400 {object} response.Error
+// @Failure 404 {object} response.Error
+// @Failure 500 {object} response.Error
+// @Security ApiKeyAuth
+// @Router /books/update/{id} [put]
 func (c *BookCtrl) Update(ctx *gin.Context) {
 	var (
 		logId     uuid.UUID
@@ -162,6 +188,18 @@ func (c *BookCtrl) Update(ctx *gin.Context) {
 	return
 }
 
+// Delete godoc
+// @Summary Delete a book
+// @Description Delete a book
+// @Tags books
+// @Accept  json
+// @Produce  json
+// @Param id path string true "Book ID"
+// @Success 200 {object} response.Success
+// @Failure 400 {object} response.Error
+// @Failure 500 {object} response.Error
+// @Security ApiKeyAuth
+// @Router /books/delete/{id} [delete]
 func (c *BookCtrl) Delete(ctx *gin.Context) {
 	var (
 		logId     uuid.UUID
@@ -207,6 +245,21 @@ func (c *BookCtrl) Delete(ctx *gin.Context) {
 	return
 }
 
+// List godoc
+// @Summary List books
+// @Description List books
+// @Tags books
+// @Accept  json
+// @Produce  json
+// @Param page query int false "Page number"
+// @Param limit query int false "Number of items per page"
+// @Param order_by query string false "Order by field"
+// @Param order_direction query string false "Order direction (asc/desc)"
+// @Param search query string false "Search query"
+// @Success 200 {object} response.Pagination
+// @Failure 404 {object} response.Error
+// @Failure 500 {object} response.Error
+// @Router /books [get]
 func (c *BookCtrl) List(ctx *gin.Context) {
 	var (
 		logId     uuid.UUID

@@ -24,6 +24,18 @@ func NewLendingController(dbBookLend *gorm.DB) *LendingCtrl {
 	return &LendingCtrl{DBBookLending: dbBookLend}
 }
 
+// BorrowBook godoc
+// @Summary Borrow a book
+// @Description Borrow a book
+// @Tags books
+// @Accept  json
+// @Produce  json
+// @Param id path string true "Book ID"
+// @Success 201 {object} response.Success
+// @Failure 400 {object} response.Error
+// @Failure 422 {object} response.Error
+// @Security ApiKeyAuth
+// @Router /books/{id}/borrow [post]
 func (c *LendingCtrl) BorrowBook(ctx *gin.Context) {
 	var (
 		logId     uuid.UUID
@@ -108,6 +120,18 @@ func (c *LendingCtrl) BorrowBook(ctx *gin.Context) {
 	return
 }
 
+// ReturnBook godoc
+// @Summary Return a book
+// @Description Return a book
+// @Tags books
+// @Accept  json
+// @Produce  json
+// @Param id path string true "Lending ID"
+// @Success 200 {object} response.Success
+// @Failure 400 {object} response.Error
+// @Failure 422 {object} response.Error
+// @Security ApiKeyAuth
+// @Router /books/{id}/return [post]
 func (c *LendingCtrl) ReturnBook(ctx *gin.Context) {
 	var (
 		logId     uuid.UUID

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"digital-book-lending/app"
 	"digital-book-lending/database"
+	_ "digital-book-lending/docs"
 	"digital-book-lending/utils"
 	"flag"
 	"fmt"
@@ -25,6 +26,25 @@ func FailOnError(err error, msg string) {
 	}
 }
 
+// @title Digital Book Lending API
+// @version 1.0
+// @description This is a sample server for a digital book lending service.
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name API Support
+// @contact.url https://www.linkedin.com/in/zaidus-zhuhur/
+// @contact.email zaiduszhuhur@gmail.com
+
+// @license.name Apache 2.0
+// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host localhost:8080
+// @BasePath /api/v1
+// @schemes http
+
+// @securityDefinitions.apikey ApiKeyAuth
+// @in header
+// @name Authorization
 func main() {
 	var (
 		err         error

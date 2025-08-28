@@ -28,6 +28,17 @@ func NewUserController(dbBookLend *gorm.DB) *UserCtrl {
 	}
 }
 
+// Register godoc
+// @Summary Register a new user
+// @Description Register a new user
+// @Tags users
+// @Accept  json
+// @Produce  json
+// @Param user body request.Register true "User registration details"
+// @Success 201 {object} response.Success
+// @Failure 400 {object} response.Error
+// @Failure 500 {object} response.Error
+// @Router /user/register [post]
 func (cc *UserCtrl) Register(ctx *gin.Context) {
 	var (
 		logId     uuid.UUID
@@ -92,6 +103,17 @@ func (cc *UserCtrl) Register(ctx *gin.Context) {
 	return
 }
 
+// Login godoc
+// @Summary Login a user
+// @Description Login a user
+// @Tags users
+// @Accept  json
+// @Produce  json
+// @Param user body request.Login true "User login details"
+// @Success 200 {object} response.Success
+// @Failure 400 {object} response.Error
+// @Failure 500 {object} response.Error
+// @Router /user/login [post]
 func (cc *UserCtrl) Login(ctx *gin.Context) {
 	var (
 		logId     uuid.UUID
@@ -127,7 +149,7 @@ func (cc *UserCtrl) Login(ctx *gin.Context) {
 
 		res := response.Response(http.StatusInternalServerError, utils.MsgFail, logId, nil)
 		res.Error = err.Error()
-		ctx.JSON(http.StatusBadRequest, res)
+		ctx.JSON(http.StatusInternalServerError, res)
 		return
 	}
 
