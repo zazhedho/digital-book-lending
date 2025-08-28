@@ -25,6 +25,10 @@ func (r *repoLending) Store(tx *gorm.DB, m models.LendingRecord) (models.Lending
 	return m, nil
 }
 
+func (r *repoLending) Update(tx *gorm.DB, m models.LendingRecord, data interface{}) error {
+	return tx.Model(&m).Updates(data).Error
+}
+
 func (r *repoLending) GetActiveByUserAndBook(tx *gorm.DB, userId, bookId string) (models.LendingRecord, error) {
 	var m models.LendingRecord
 	err := tx.Where("user_id = ? AND book_id = ? AND status = ?", userId, bookId, utils.Borrowed).
@@ -39,4 +43,11 @@ func (r *repoLending) CountBorrowsByUser(tx *gorm.DB, userId string, since time.
 		Where("user_id = ? AND borrow_date >= ?", userId, since).
 		Count(&count).Error
 	return count, err
+}
+
+func (r *repoLending) GetBorrowedById(tx *gorm.DB, id string) (models.LendingRecord, error) {
+	var m models.LendingRecord
+	err := tx.Where("id = ? AND status = ?", id, utils.Borrowed).
+		First(&m).Error
+	return m, err
 }

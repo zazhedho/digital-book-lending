@@ -107,3 +107,68 @@ func (c *LendingCtrl) BorrowBook(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, res)
 	return
 }
+
+func (c *LendingCtrl) ReturnBook(ctx *gin.Context) {
+	var (
+		logId     uuid.UUID
+		logPrefix string
+		err       error
+	)
+	bookRepo := repository.NewBookRepo(c.DBBookLending)
+	lendingRepo := repository.NewLendingRepo(c.DBBookLending)
+
+	authData := getAuthData(ctx)
+	userId := utils.InterfaceString(authData["user_id"])
+
+	logId = utils.GenerateLogId(ctx)
+	logPrefix = fmt.Sprintf("[%s][LendingBook][ReturnBook]", logId)
+
+	lendingId, err := functions.ValidateUUID(ctx, logPrefix, logId)
+	if err != nil {
+		return
+	}
+
+	err = c.DBBookLending.Transaction(func(tx *gorm.DB) error {
+		record, err := lendingRepo.GetBorrowedById(tx, lendingId)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.New("active lending record not found or already returned")
+			}
+			return err
+		}
+		if record.UserId != userId {
+			return errors.New("you are not authorized to return this book")
+		}
+
+		book, err := bookRepo.GetByIdForUpdate(tx, record.BookId)
+		if err != nil {
+			return err
+		}
+		bookDataUpdate := map[string]interface{}{"quantity": book.Quantity + 1}
+		if _, err := bookRepo.Update(tx, book, bookDataUpdate); err != nil {
+			return err
+		}
+
+		lendingDataUpdate := map[string]interface{}{
+			"status":      utils.Returned,
+			"return_date": time.Now(),
+		}
+		if err := lendingRepo.Update(tx, record, lendingDataUpdate); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; Error: %+v", logPrefix, err.Error()))
+		res := response.Response(http.StatusUnprocessableEntity, utils.MsgFail, logId, nil)
+		res.Errors = response.Errors{Code: http.StatusUnprocessableEntity, Message: err.Error()}
+		ctx.JSON(http.StatusUnprocessableEntity, res)
+		return
+	}
+
+	res := response.Response(http.StatusOK, "Book returned successfully", logId, nil)
+	ctx.JSON(http.StatusOK, res)
+	return
+}

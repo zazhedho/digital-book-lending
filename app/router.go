@@ -67,6 +67,7 @@ func (r *Routes) BookLending() {
 			lendingBook := book.Group("").Use(r.AuthMiddleware(), r.RoleMiddleware(utils.RoleAdmin, utils.RoleMember))
 			{
 				lendingBook.POST("/:id/borrow", ctrlLending.BorrowBook)
+				lendingBook.POST("/:id/return", ctrlLending.ReturnBook)
 			}
 		}
 	}
