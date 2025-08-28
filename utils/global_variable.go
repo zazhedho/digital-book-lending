@@ -18,28 +18,14 @@ const (
 	AccessDenied   = "Access denied. You do not have the required permissions."
 )
 
-// Redis Key
 const (
 	RedisAppConf = "cache:config:app"
-	RedisDbConf  = "cache:config:db"
 )
 
 // CtxKeyId Context KEYS
 const (
 	CtxKeyId       = "CTX_ID"
 	CtxKeyAuthData = "auth_data"
-)
-
-const (
-	LayoutMonth       = "2006_01"
-	LayoutYearMonth   = "200601"
-	LayoutDate        = "2006-01-02"
-	LayoutTime        = "15:04:05"
-	LayoutDateTime    = "2006-01-02 15:04:05"
-	LayoutDateTimeDot = "2006-01-02 15.04.05"
-	LayoutTimestamp   = "2006-01-02 15:04:05.000000000"
-	LayoutTimeStamp   = "2006-01-02 15:04:05.000"
-	LayoutDateTimeH   = "2006-01-02 15"
 )
 
 const (

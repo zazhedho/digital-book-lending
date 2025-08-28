@@ -187,28 +187,6 @@ func GenerateLogId(ctx *gin.Context) uuid.UUID {
 	return logId
 }
 
-func StructToMapUpdate(data interface{}) map[string]interface{} {
-	ret := map[string]interface{}{}
-	v := reflect.ValueOf(data)
-	for i := 0; i < v.NumField(); i++ {
-		field := v.Type().Field(i).Name
-		value := v.Field(i).Interface()
-		ret[field] = value
-	}
-	return ret
-}
-
-func SplitAndTrim(data string) []string {
-	if data == "" {
-		return []string{}
-	}
-	parts := strings.Split(data, "|")
-	for i := range parts {
-		parts[i] = strings.TrimSpace(parts[i])
-	}
-	return parts
-}
-
 func CreateUUID() string {
 	var id string
 	if uuid7, err := uuid.NewV7(); err == nil {

@@ -7,6 +7,7 @@ import (
 	"digital-book-lending/utils/response"
 	"fmt"
 	"net/http"
+	"slices"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -130,14 +131,7 @@ func (r *Routes) RoleMiddleware(allowedRoles ...string) gin.HandlerFunc {
 			return
 		}
 
-		isAllowed := false
-		for _, role := range allowedRoles {
-			if userRole == role {
-				isAllowed = true
-				break
-			}
-		}
-
+		isAllowed := slices.Contains(allowedRoles, userRole)
 		if !isAllowed {
 			utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; User with role '%s' tried to access a restricted route;", logPrefix, userRole))
 			res := response.Response(http.StatusForbidden, utils.MsgFail, logId, nil)
