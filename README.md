@@ -202,7 +202,7 @@ http://localhost:8080/api/v1
 ### Postman Collection
 
 ```
-https://zaiduszhuhur.postman.co/workspace/My-Workspace~bd24e52e-021c-4145-8b09-90ac08d0be89/collection/22817958-51d7296c-7a00-471c-8d6a-334e16ea70f0?action=share&source=copy-link&creator=22817958
+[Postman colection](https://zaiduszhuhur.postman.co/workspace/My-Workspace~bd24e52e-021c-4145-8b09-90ac08d0be89/collection/22817958-51d7296c-7a00-471c-8d6a-334e16ea70f0?action=share&source=copy-link&creator=22817958)
 ```
 
 ### Health Check
