@@ -7,11 +7,17 @@ A RESTful API service for digital book lending built with Go, Gin framework, and
 - **User Management**
   - User registration and authentication
   - JWT-based authorization
+  - Role-based access control
   - Secure password hashing
 
 - **Book Management**
   - Create, read, update, and delete books
   - Book categorization and inventory tracking
+
+- **Lending Management**
+  - Borrow and return books
+  - Track lending history
+  - Rule limit lending books
 
 - **System Features**
   - Database migrations
@@ -49,7 +55,7 @@ digital-book-lending/
 - **ORM**: GORM
 - **Authentication**: JWT (golang-jwt/jwt)
 - **Migration**: golang-migrate
-- **Caching**: Redis
+- **Caching**: Redis (optional)
 - **Configuration**: Viper
 - **Containerization**: Docker
 
@@ -193,6 +199,12 @@ docker-compose up -d
 http://localhost:8080/api/v1
 ```
 
+### Postman Collection
+
+```
+https://zaiduszhuhur.postman.co/workspace/My-Workspace~bd24e52e-021c-4145-8b09-90ac08d0be89/collection/22817958-51d7296c-7a00-471c-8d6a-334e16ea70f0?action=share&source=copy-link&creator=22817958
+```
+
 ### Health Check
 
 ```http
@@ -235,10 +247,17 @@ Content-Type: application/json
 
 ### Book Management Endpoints
 
-> **Note:** All book endpoints require authentication. Include the JWT token in the Authorization header:
+> **Note:** All book endpoints require authentication(except book list endpoints). Include the JWT token in the Authorization header:
 > ```
 > Authorization: Bearer <your-jwt-token>
 > ```
+
+#### List Book
+
+```http
+GET /api/v1/books?page=1&limit=1&search=programming
+Content-Type: application/json
+```
 
 #### Create Book
 
@@ -279,18 +298,42 @@ DELETE /api/v1/books/delete/{book-id}
 Authorization: Bearer <token>
 ```
 
+### Lending Book Management Endpoints
+
+> **Note:** All Lending book endpoints require authentication. Include the JWT token in the Authorization header:
+> ```
+> Authorization: Bearer <your-jwt-token>
+> ```
+
+#### Borrow Book
+
+```http
+POST /api/v1/books/{book-id}/borrow
+Content-Type: application/json
+Authorization: Bearer <token>
+```
+
+#### Return Book
+
+```http
+POST /api/v1/books/{lending-id}/return
+Content-Type: application/json
+Authorization: Bearer <token>
+```
+
 ## 🗄️ Database Schema
 
 ### Users Table
 
-| Column     | Type      | Description           |
-|------------|-----------|-----------------------|
-| id         | VARCHAR   | Primary key (UUID)    |
-| name       | VARCHAR   | User's full name      |
-| email      | VARCHAR   | User's email address  |
-| password   | VARCHAR   | Hashed password       |
-| created_at | TIMESTAMP | Creation timestamp    |
-| updated_at | TIMESTAMP | Last update time      |
+| Column     | Type      | Description          |
+|------------|-----------|----------------------|
+| id         | VARCHAR   | Primary key (UUID)   |
+| name       | VARCHAR   | User's full name     |
+| email      | VARCHAR   | User's email address |
+| password   | VARCHAR   | Hashed password      |
+| role       | VARCHAR   | User's role          |
+| created_at | TIMESTAMP | Creation timestamp   |
+| updated_at | TIMESTAMP | Last update time     |
 
 ### Books Table
 
@@ -309,6 +352,19 @@ Authorization: Bearer <token>
 | deleted_at | TIMESTAMP | Soft delete time   |
 | deleted_by | VARCHAR   | Deleter user name  |
 
+### Lending Records Table
+
+| Column      | Type      | Description        |
+|-------------|-----------|--------------------|
+| id          | VARCHAR   | Primary key (UUID) |
+| user_id     | VARCHAR   | User lending       |
+| book_id     | VARCHAR   | Book Lending       |
+| borrow_date | VARCHAR   | Borrow timestamp   |
+| return_date | VARCHAR   | Return timestamp   |
+| status      | VARCHAR   | Lending status     |
+| created_at  | TIMESTAMP | Creation timestamp |
+| updated_at  | TIMESTAMP | Last update time   |
+
 ## 🔧 Configuration
 
 The application uses Viper for configuration management. You can configure the application using:
@@ -320,7 +376,7 @@ The application uses Viper for configuration management. You can configure the a
 Key configuration options:
 
 - `APP_NAME`: Application name
-- `APP_ENV`: Environment (development, staging, production)
+- `APP_ENV`: Environment (local, development, staging, production)
 - `PORT`: Server port
 - `DB_*`: Database connection parameters
 - `JWT_KEY`: JWT signing secret
@@ -359,3 +415,4 @@ The application includes several middleware components:
 - **Error Handler**: Centralized error handling and recovery
 - **Context ID**: Request tracing with unique identifiers
 - **Authentication**: JWT token validation
+- **Authorization**: Role-based access control
