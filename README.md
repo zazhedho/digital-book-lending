@@ -203,6 +203,22 @@ http://localhost:8080/api/v1
 
 [Click here to access the Postman Collection for demo](https://zaiduszhuhur.postman.co/workspace/My-Workspace~bd24e52e-021c-4145-8b09-90ac08d0be89/collection/22817958-51d7296c-7a00-471c-8d6a-334e16ea70f0?action=share&source=copy-link&creator=22817958)
 
+### Swagger Documentation
+
+This API is documented using Swagger, which provides an interactive UI to explore the endpoints.
+
+Once the application is running, you can access the Swagger UI at:
+
+```
+http://localhost:8080/swagger/index.html
+```
+
+The Swagger UI allows you to:
+- View all available API endpoints.
+- See detailed information about each endpoint, including request parameters, and response models.
+- Execute API requests directly from the browser to test the endpoints.
+- View and test endpoints that require authentication by providing a JWT token.
+
 ### Health Check
 
 ```http
