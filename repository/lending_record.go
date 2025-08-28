@@ -4,6 +4,7 @@ import (
 	"digital-book-lending/interfaces"
 	"digital-book-lending/models"
 	"digital-book-lending/utils"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -30,4 +31,12 @@ func (r *repoLending) GetActiveByUserAndBook(tx *gorm.DB, userId, bookId string)
 		First(&m).Error
 
 	return m, err
+}
+
+func (r *repoLending) CountBorrowsByUser(tx *gorm.DB, userId string, since time.Time) (int64, error) {
+	var count int64
+	err := tx.Model(&models.LendingRecord{}).
+		Where("user_id = ? AND borrow_date >= ?", userId, since).
+		Count(&count).Error
+	return count, err
 }

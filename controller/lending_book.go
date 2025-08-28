@@ -64,6 +64,15 @@ func (c *LendingCtrl) BorrowBook(ctx *gin.Context) {
 			return errors.New("you have already borrowed this book")
 		}
 
+		sevenDaysAgo := time.Now().AddDate(0, 0, -7)
+		recentBorrows, err := lendingRepo.CountBorrowsByUser(tx, userId, sevenDaysAgo)
+		if err != nil {
+			return err
+		}
+		if recentBorrows >= 5 {
+			return errors.New("borrowing limit exceeded: you have borrowed 5 books in the last 7 days")
+		}
+
 		bookDataUpdate := map[string]interface{}{"quantity": book.Quantity - 1}
 		if _, err := bookRepo.Update(tx, book, bookDataUpdate); err != nil {
 			return err
