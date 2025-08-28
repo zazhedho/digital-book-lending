@@ -134,7 +134,7 @@ func (c *BookCtrl) Update(ctx *gin.Context) {
 	book.Quantity = req.Quantity
 	book.UpdatedAt = &timeNow
 	book.UpdatedBy = username
-	if rows, err = bookRepo.Update(models.Book{ID: id}, book); err != nil {
+	if rows, err = bookRepo.Update(c.DBBookLending, models.Book{ID: id}, book); err != nil {
 		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; bookRepo.Update; Error: %+v", logPrefix, err))
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; ISBN: '%s' already exists", logPrefix, book.ISBN))

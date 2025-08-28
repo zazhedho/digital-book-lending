@@ -41,6 +41,7 @@ func NewRoutes() *Routes {
 func (r *Routes) BookLending() {
 	ctrlUser := controller.NewUserController(r.DBBookLending)
 	ctrlBook := controller.NewBookController(r.DBBookLending)
+	ctrlLending := controller.NewLendingController(r.DBBookLending)
 
 	apiV1 := r.App.Group("/api/v1")
 	{
@@ -55,11 +56,17 @@ func (r *Routes) BookLending() {
 		book := apiV1.Group("/books")
 		{
 			book.GET("", ctrlBook.List)
+
 			adminBook := book.Group("").Use(r.AuthMiddleware(), r.RoleMiddleware(utils.RoleAdmin))
 			{
 				adminBook.POST("", ctrlBook.Create)
 				adminBook.PUT("/update/:id", ctrlBook.Update)
 				adminBook.DELETE("delete/:id", ctrlBook.Delete)
+			}
+
+			lendingBook := book.Group("").Use(r.AuthMiddleware(), r.RoleMiddleware(utils.RoleAdmin, utils.RoleMember))
+			{
+				lendingBook.POST("/:id/borrow", ctrlLending.BorrowBook)
 			}
 		}
 	}

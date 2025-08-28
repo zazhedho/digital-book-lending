@@ -1,0 +1,100 @@
+package controller
+
+import (
+	"digital-book-lending/models"
+	"digital-book-lending/repository"
+	"digital-book-lending/utils"
+	"digital-book-lending/utils/functions"
+	"digital-book-lending/utils/response"
+	"errors"
+	"fmt"
+	"net/http"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+)
+
+type LendingCtrl struct {
+	DBBookLending *gorm.DB
+}
+
+func NewLendingController(dbBookLend *gorm.DB) *LendingCtrl {
+	return &LendingCtrl{DBBookLending: dbBookLend}
+}
+
+func (c *LendingCtrl) BorrowBook(ctx *gin.Context) {
+	var (
+		logId     uuid.UUID
+		logPrefix string
+		err       error
+
+		newLendingRecord models.LendingRecord
+	)
+	bookRepo := repository.NewBookRepo(c.DBBookLending)
+	lendingRepo := repository.NewLendingRepo(c.DBBookLending)
+
+	authData := getAuthData(ctx)
+	userId := utils.InterfaceString(authData["user_id"])
+
+	logId = utils.GenerateLogId(ctx)
+	logPrefix = fmt.Sprintf("[%s][LendingBook][Borrow]", logId)
+
+	bookId, err := functions.ValidateUUID(ctx, logPrefix, logId)
+	if err != nil {
+		return
+	}
+
+	err = c.DBBookLending.Transaction(func(tx *gorm.DB) error {
+		book, err := bookRepo.GetByIdForUpdate(tx, bookId)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.New("book not found")
+			}
+			return err
+		}
+
+		if book.Quantity < 1 {
+			return errors.New("book is out of stock")
+		}
+
+		_, err = lendingRepo.GetActiveByUserAndBook(tx, userId, bookId)
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("you have already borrowed this book")
+		}
+
+		bookDataUpdate := map[string]interface{}{"quantity": book.Quantity - 1}
+		if _, err := bookRepo.Update(tx, book, bookDataUpdate); err != nil {
+			return err
+		}
+
+		record := models.LendingRecord{
+			Id:         utils.CreateUUID(),
+			UserId:     userId,
+			BookId:     bookId,
+			BorrowDate: time.Now(),
+			Status:     utils.Borrowed,
+		}
+
+		newLendingRecord, err = lendingRepo.Store(tx, record)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; Error: %+v", logPrefix, err.Error()))
+		res := response.Response(http.StatusUnprocessableEntity, utils.MsgFail, logId, nil)
+		res.Errors = response.Errors{Code: http.StatusUnprocessableEntity, Message: err.Error()}
+		ctx.JSON(http.StatusUnprocessableEntity, res)
+		return
+	}
+
+	res := response.Response(http.StatusCreated, "Book borrowed successfully", logId, newLendingRecord)
+	utils.WriteLog(utils.LogLevelDebug, fmt.Sprintf("%s; Success: %+v;", logPrefix, utils.JsonEncode(newLendingRecord)))
+	ctx.JSON(http.StatusCreated, res)
+	return
+}

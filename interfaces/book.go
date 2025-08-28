@@ -1,12 +1,17 @@
 package interfaces
 
-import "digital-book-lending/models"
+import (
+	"digital-book-lending/models"
+
+	"gorm.io/gorm"
+)
 
 type Book interface {
 	Store(m models.Book) error
-	Update(m models.Book, data interface{}) (int64, error)
+	Update(tx *gorm.DB, m models.Book, data interface{}) (int64, error)
 	Delete(m models.Book) (int64, error)
 	SoftDelete(m models.Book, data interface{}) (int64, error)
 	GetByIsbn(isbn string) (models.Book, error)
 	Fetch(page, limit int, orderBy, orderDir, search string) ([]models.Book, int64, error)
+	GetByIdForUpdate(tx *gorm.DB, id string) (models.Book, error)
 }

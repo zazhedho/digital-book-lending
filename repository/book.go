@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 func NewBookRepo(db *gorm.DB) interfaces.Book {
@@ -29,8 +30,8 @@ func (r *repoBook) Store(m models.Book) error {
 	return nil
 }
 
-func (r *repoBook) Update(m models.Book, data interface{}) (int64, error) {
-	res := r.DB.Table(m.TableName()).Where("id = ? AND deleted_at IS NULL", m.ID).Updates(data)
+func (r *repoBook) Update(tx *gorm.DB, m models.Book, data interface{}) (int64, error) {
+	res := tx.Table(m.TableName()).Where("id = ? AND deleted_at IS NULL", m.ID).Updates(data)
 	if res.Error != nil {
 		utils.WriteLog(utils.LogLevelError, "sqlBook.Update; "+res.Error.Error())
 		return 0, res.Error
@@ -117,4 +118,9 @@ func (r *repoBook) Fetch(page, limit int, orderBy, orderDir, search string) (ret
 	}
 
 	return ret, totalData, nil
+}
+
+func (r *repoBook) GetByIdForUpdate(tx *gorm.DB, id string) (ret models.Book, err error) {
+	err = tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&ret, "id = ?", id).Error
+	return ret, err
 }

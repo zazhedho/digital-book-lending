@@ -45,4 +45,7 @@ const (
 const (
 	RoleAdmin  = "admin"
 	RoleMember = "member"
+
+	Borrowed = "borrowed"
+	Returned = "returned"
 )
