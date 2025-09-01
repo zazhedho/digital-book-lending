@@ -186,6 +186,7 @@ func (cc *UserCtrl) Login(ctx *gin.Context) {
 // @Produce  json
 // @Success 200 {object} response.Success
 // @Failure 500 {object} response.Error
+// @Security ApiKeyAuth
 // @Router /user/logout [post]
 func (cc *UserCtrl) Logout(ctx *gin.Context) {
 	var (

@@ -399,6 +399,11 @@ const docTemplate = `{
         },
         "/user/logout": {
             "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Logout a user",
                 "consumes": [
                     "application/json"
