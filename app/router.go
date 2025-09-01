@@ -3,8 +3,10 @@ package app
 import (
 	"digital-book-lending/controller"
 	"digital-book-lending/middleware"
+	"digital-book-lending/repository"
 	"digital-book-lending/utils"
 	"digital-book-lending/utils/response"
+	"errors"
 	"fmt"
 	"net/http"
 	"slices"
@@ -55,6 +57,7 @@ func (r *Routes) BookLending() {
 		{
 			user.POST("/register", ctrlUser.Register)
 			user.POST("/login", ctrlUser.Login)
+			user.POST("/logout", r.AuthMiddleware(), ctrlUser.Logout)
 		}
 
 		// book route
@@ -97,7 +100,27 @@ func (r *Routes) AuthMiddleware() gin.HandlerFunc {
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, res)
 			return
 		}
-		logPrefix += fmt.Sprintf("[%s][%s]", dataJWT["id"], utils.InterfaceString(dataJWT["user_id"]))
+		logPrefix += fmt.Sprintf("[%s][%s]", utils.InterfaceString(dataJWT["jti"]), utils.InterfaceString(dataJWT["user_id"]))
+
+		// Check if token is blacklisted
+		blacklistRepo := repository.NewBlacklistRepo(r.DBBookLending)
+		_, err = blacklistRepo.GetByToken(tokenString)
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; blacklistRepo.GetByToken; Error: %+v", logPrefix, err))
+			res := response.Response(http.StatusInternalServerError, utils.MsgFail, logId, nil)
+			res.Error = err.Error()
+			ctx.AbortWithStatusJSON(http.StatusInternalServerError, res)
+			return
+		}
+
+		//the token is valid but has been logged out
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; Invalid Token: %s; Error: token is blacklisted;", logPrefix, tokenString))
+			res := response.Response(http.StatusUnauthorized, utils.MsgFail, logId, nil)
+			res.Error = "Please login and try again"
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, res)
+			return
+		}
 
 		ctx.Set(utils.CtxKeyAuthData, dataJWT)
 		ctx.Set("token", tokenString)

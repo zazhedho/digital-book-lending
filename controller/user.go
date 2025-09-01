@@ -168,12 +168,62 @@ func (cc *UserCtrl) Login(ctx *gin.Context) {
 
 		res := response.Response(http.StatusInternalServerError, utils.MsgFail, logId, nil)
 		res.Error = err.Error()
-		ctx.JSON(http.StatusBadRequest, res)
+		ctx.JSON(http.StatusInternalServerError, res)
 		return
 	}
 
 	res := response.Response(http.StatusOK, "success", logId, fmt.Sprintf("token: %s", token))
 	utils.WriteLog(utils.LogLevelDebug, fmt.Sprintf("%s; Success: %+v;", logPrefix, utils.JsonEncode(token)))
+	ctx.JSON(http.StatusOK, res)
+	return
+}
+
+// Logout godoc
+// @Summary Logout a user
+// @Description Logout a user
+// @Tags users
+// @Accept  json
+// @Produce  json
+// @Success 200 {object} response.Success
+// @Failure 500 {object} response.Error
+// @Router /user/logout [post]
+func (cc *UserCtrl) Logout(ctx *gin.Context) {
+	var (
+		logId     uuid.UUID
+		logPrefix string
+		err       error
+	)
+
+	blacklistRepo := repository.NewBlacklistRepo(cc.DBBookLending)
+
+	logId = utils.GenerateLogId(ctx)
+	logPrefix = fmt.Sprintf("[%s][UserController][Logout]", logId)
+
+	token, ok := ctx.Get("token")
+	if !ok {
+		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; token not found in context", logPrefix))
+		res := response.Response(http.StatusInternalServerError, utils.MsgFail, logId, nil)
+		res.Error = "token not found"
+		ctx.JSON(http.StatusInternalServerError, res)
+		return
+	}
+
+	blacklist := models.Blacklist{
+		ID:        utils.CreateUUID(),
+		Token:     token.(string),
+		CreatedAt: time.Now(),
+	}
+
+	if err = blacklistRepo.Store(blacklist); err != nil {
+		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; blacklistRepo.Store; Error: %+v", logPrefix, err))
+		res := response.Response(http.StatusInternalServerError, utils.MsgFail, logId, nil)
+		res.Error = err.Error()
+		ctx.JSON(http.StatusInternalServerError, res)
+		return
+	}
+
+	res := response.Response(http.StatusOK, "User logged out successfully", logId, nil)
+	utils.WriteLog(utils.LogLevelDebug, fmt.Sprintf("%s; Success: User logged out successfully", logPrefix))
 	ctx.JSON(http.StatusOK, res)
 	return
 }

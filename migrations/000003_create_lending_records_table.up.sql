@@ -1,4 +1,4 @@
-CREATE TABLE `lending_records` (
+CREATE TABLE IF NOT EXISTS `lending_records` (
     `id` CHAR(36) NOT NULL PRIMARY KEY,
     `user_id` CHAR(36) NOT NULL,
     `book_id` CHAR(36) NOT NULL,
