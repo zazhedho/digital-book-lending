@@ -1,8 +1,8 @@
 package services
 
 import (
+	"digital-book-lending/interfaces"
 	"digital-book-lending/models"
-	"digital-book-lending/repository"
 	"digital-book-lending/utils"
 	"errors"
 	"time"
@@ -11,20 +11,24 @@ import (
 )
 
 type LendingService struct {
-	DB *gorm.DB
+	lendingRepo interfaces.Lending
+	bookRepo    interfaces.Book
+	DB          *gorm.DB
 }
 
-func NewLendingService(db *gorm.DB) *LendingService {
-	return &LendingService{DB: db}
+func NewLendingService(lendingRepo interfaces.Lending, bookRepo interfaces.Book, db *gorm.DB) *LendingService {
+	return &LendingService{
+		lendingRepo: lendingRepo,
+		bookRepo:    bookRepo,
+		DB:          db,
+	}
 }
 
 func (s *LendingService) BorrowBook(bookId, userId string) (models.LendingRecord, error) {
-	bookRepo := repository.NewBookRepo(s.DB)
-	lendingRepo := repository.NewLendingRepo(s.DB)
 	var newLendingRecord models.LendingRecord
 
 	err := s.DB.Transaction(func(tx *gorm.DB) error {
-		book, err := bookRepo.GetByIdForUpdate(tx, bookId)
+		book, err := s.bookRepo.GetByIdForUpdate(tx, bookId)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errors.New("book not found")
@@ -36,13 +40,13 @@ func (s *LendingService) BorrowBook(bookId, userId string) (models.LendingRecord
 			return errors.New("book is out of stock")
 		}
 
-		_, err = lendingRepo.GetActiveByUserAndBook(tx, userId, bookId)
+		_, err = s.lendingRepo.GetActiveByUserAndBook(tx, userId, bookId)
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("you have already borrowed this book")
 		}
 
 		sevenDaysAgo := time.Now().AddDate(0, 0, -7)
-		recentBorrows, err := lendingRepo.CountBorrowsByUser(tx, userId, sevenDaysAgo)
+		recentBorrows, err := s.lendingRepo.CountBorrowsByUser(tx, userId, sevenDaysAgo)
 		if err != nil {
 			return err
 		}
@@ -51,7 +55,7 @@ func (s *LendingService) BorrowBook(bookId, userId string) (models.LendingRecord
 		}
 
 		bookDataUpdate := map[string]interface{}{"quantity": book.Quantity - 1}
-		if _, err := bookRepo.Update(tx, book, bookDataUpdate); err != nil {
+		if _, err := s.bookRepo.Update(tx, book, bookDataUpdate); err != nil {
 			return err
 		}
 
@@ -63,7 +67,7 @@ func (s *LendingService) BorrowBook(bookId, userId string) (models.LendingRecord
 			Status:     utils.Borrowed,
 		}
 
-		newLendingRecord, err = lendingRepo.Store(tx, record)
+		newLendingRecord, err = s.lendingRepo.Store(tx, record)
 		if err != nil {
 			return err
 		}
@@ -75,11 +79,8 @@ func (s *LendingService) BorrowBook(bookId, userId string) (models.LendingRecord
 }
 
 func (s *LendingService) ReturnBook(lendingId, userId string) error {
-	bookRepo := repository.NewBookRepo(s.DB)
-	lendingRepo := repository.NewLendingRepo(s.DB)
-
 	err := s.DB.Transaction(func(tx *gorm.DB) error {
-		record, err := lendingRepo.GetBorrowedById(tx, lendingId)
+		record, err := s.lendingRepo.GetBorrowedById(tx, lendingId)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errors.New("active lending record not found or already returned")
@@ -90,12 +91,12 @@ func (s *LendingService) ReturnBook(lendingId, userId string) error {
 			return errors.New("you are not authorized to return this book")
 		}
 
-		book, err := bookRepo.GetByIdForUpdate(tx, record.BookId)
+		book, err := s.bookRepo.GetByIdForUpdate(tx, record.BookId)
 		if err != nil {
 			return err
 		}
 		bookDataUpdate := map[string]interface{}{"quantity": book.Quantity + 1}
-		if _, err := bookRepo.Update(tx, book, bookDataUpdate); err != nil {
+		if _, err := s.bookRepo.Update(tx, book, bookDataUpdate); err != nil {
 			return err
 		}
 
@@ -103,7 +104,7 @@ func (s *LendingService) ReturnBook(lendingId, userId string) error {
 			"status":      utils.Returned,
 			"return_date": time.Now(),
 		}
-		if err := lendingRepo.Update(tx, record, lendingDataUpdate); err != nil {
+		if err := s.lendingRepo.Update(tx, record, lendingDataUpdate); err != nil {
 			return err
 		}
 

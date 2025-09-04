@@ -1,29 +1,28 @@
 package services
 
 import (
+	"digital-book-lending/interfaces"
 	"digital-book-lending/models"
-	"digital-book-lending/repository"
 	"digital-book-lending/utils"
 	"digital-book-lending/utils/request"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 )
 
 type UserService struct {
-	DB *gorm.DB
+	userRepo      interfaces.Users
+	blacklistRepo interfaces.Blacklist
 }
 
-func NewUserService(db *gorm.DB) *UserService {
+func NewUserService(userRepo interfaces.Users, blacklistRepo interfaces.Blacklist) *UserService {
 	return &UserService{
-		DB: db,
+		userRepo:      userRepo,
+		blacklistRepo: blacklistRepo,
 	}
 }
 
 func (s *UserService) RegisterUser(req request.Register) (models.Users, error) {
-	userRepo := repository.NewUserRepo(s.DB)
-
 	hashedPwd, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return models.Users{}, err
@@ -38,7 +37,7 @@ func (s *UserService) RegisterUser(req request.Register) (models.Users, error) {
 		CreatedAt: time.Now(),
 	}
 
-	if err = userRepo.Store(user); err != nil {
+	if err = s.userRepo.Store(user); err != nil {
 		return models.Users{}, err
 	}
 
@@ -46,9 +45,7 @@ func (s *UserService) RegisterUser(req request.Register) (models.Users, error) {
 }
 
 func (s *UserService) LoginUser(req request.Login, logId string) (string, error) {
-	userRepo := repository.NewUserRepo(s.DB)
-
-	user, err := userRepo.GetByEmail(req.Email)
+	user, err := s.userRepo.GetByEmail(req.Email)
 	if err != nil {
 		return "", err
 	}
@@ -66,15 +63,13 @@ func (s *UserService) LoginUser(req request.Login, logId string) (string, error)
 }
 
 func (s *UserService) LogoutUser(token string) error {
-	blacklistRepo := repository.NewBlacklistRepo(s.DB)
-
 	blacklist := models.Blacklist{
 		ID:        utils.CreateUUID(),
 		Token:     token,
 		CreatedAt: time.Now(),
 	}
 
-	if err := blacklistRepo.Store(blacklist); err != nil {
+	if err := s.blacklistRepo.Store(blacklist); err != nil {
 		return err
 	}
 

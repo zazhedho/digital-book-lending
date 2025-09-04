@@ -18,21 +18,13 @@ import (
 )
 
 type BookCtrl struct {
-	DB *gorm.DB
+	bookService *services.BookService
 }
 
-func NewBookController(db *gorm.DB) *BookCtrl {
+func NewBookController(bookService *services.BookService) *BookCtrl {
 	return &BookCtrl{
-		DB: db,
+		bookService: bookService,
 	}
-}
-
-func getAuthData(ctx *gin.Context) map[string]interface{} {
-	jwtClaims, _ := ctx.Get(utils.CtxKeyAuthData)
-	if jwtClaims != nil {
-		return jwtClaims.(map[string]interface{})
-	}
-	return nil
 }
 
 // Create godoc
@@ -53,8 +45,7 @@ func (c *BookCtrl) Create(ctx *gin.Context) {
 		logPrefix string
 		req       request.AddBook
 	)
-	bookService := services.NewBookService(c.DB)
-	authData := getAuthData(ctx)
+	authData := functions.GetAuthData(ctx)
 	username := utils.InterfaceString(authData["username"])
 
 	logId = utils.GenerateLogId(ctx)
@@ -69,7 +60,7 @@ func (c *BookCtrl) Create(ctx *gin.Context) {
 		return
 	}
 
-	book, err := bookService.CreateBook(req, username)
+	book, err := c.bookService.CreateBook(req, username)
 	if err != nil {
 		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; bookService.CreateBook; Error: %+v", logPrefix, err))
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
@@ -110,8 +101,7 @@ func (c *BookCtrl) Update(ctx *gin.Context) {
 		logPrefix string
 		req       request.UpdateBook
 	)
-	bookService := services.NewBookService(c.DB)
-	authData := getAuthData(ctx)
+	authData := functions.GetAuthData(ctx)
 	username := utils.InterfaceString(authData["username"])
 
 	logId = utils.GenerateLogId(ctx)
@@ -132,7 +122,7 @@ func (c *BookCtrl) Update(ctx *gin.Context) {
 	}
 	logPrefix += fmt.Sprintf("[%s][%s]", id, username)
 
-	rows, err := bookService.UpdateBook(id, req, username)
+	rows, err := c.bookService.UpdateBook(id, req, username)
 	if err != nil {
 		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; bookService.UpdateBook; Error: %+v", logPrefix, err))
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
@@ -177,8 +167,7 @@ func (c *BookCtrl) Delete(ctx *gin.Context) {
 		logId     uuid.UUID
 		logPrefix string
 	)
-	bookService := services.NewBookService(c.DB)
-	authData := getAuthData(ctx)
+	authData := functions.GetAuthData(ctx)
 	username := utils.InterfaceString(authData["username"])
 
 	logId = utils.GenerateLogId(ctx)
@@ -190,7 +179,7 @@ func (c *BookCtrl) Delete(ctx *gin.Context) {
 	}
 	logPrefix += fmt.Sprintf("[%s][%s]", id, username)
 
-	if err := bookService.DeleteBook(id, username); err != nil {
+	if err := c.bookService.DeleteBook(id, username); err != nil {
 		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; bookService.DeleteBook; Error: %+v", logPrefix, err))
 
 		res := response.Response(http.StatusInternalServerError, utils.MsgFail, logId, nil)
@@ -224,8 +213,7 @@ func (c *BookCtrl) List(ctx *gin.Context) {
 		logId     uuid.UUID
 		logPrefix string
 	)
-	bookService := services.NewBookService(c.DB)
-	authData := getAuthData(ctx)
+	authData := functions.GetAuthData(ctx)
 	username := utils.InterfaceString(authData["username"])
 
 	logId = utils.GenerateLogId(ctx)
@@ -244,7 +232,7 @@ func (c *BookCtrl) List(ctx *gin.Context) {
 	orderDir := ctx.DefaultQuery("order_direction", "desc")
 	search := ctx.Query("search")
 
-	books, totalData, err := bookService.ListBooks(page, limit, orderBy, orderDir, search)
+	books, totalData, err := c.bookService.ListBooks(page, limit, orderBy, orderDir, search)
 	if err != nil {
 		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; Fetch; Error: %+v", logPrefix, err))
 		if errors.Is(err, gorm.ErrRecordNotFound) {

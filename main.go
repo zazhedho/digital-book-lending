@@ -5,6 +5,8 @@ import (
 	"digital-book-lending/app"
 	"digital-book-lending/database"
 	_ "digital-book-lending/docs"
+	"digital-book-lending/repository"
+	"digital-book-lending/services"
 	"digital-book-lending/utils"
 	"flag"
 	"fmt"
@@ -87,10 +89,22 @@ func main() {
 	utils.WriteLog(utils.LogLevelDebug, fmt.Sprintf("ConfigID: %s", confID))
 
 	runMigration()
-	routes := app.NewRoutes()
 
-	routes.DBBookLending, sqlBookLend = database.ConnDb()
+	db, sqlBookLend := database.ConnDb()
 	defer sqlBookLend.Close()
+
+	// Repositories
+	bookRepo := repository.NewBookRepo(db)
+	userRepo := repository.NewUserRepo(db)
+	blacklistRepo := repository.NewBlacklistRepo(db)
+	lendingRepo := repository.NewLendingRepo(db)
+
+	// Services
+	bookService := services.NewBookService(bookRepo, db)
+	userService := services.NewUserService(userRepo, blacklistRepo)
+	lendingService := services.NewLendingService(lendingRepo, bookRepo, db)
+
+	routes := app.NewRoutes(bookService, userService, lendingService, blacklistRepo)
 
 	routes.BookLending()
 	err = routes.App.Run(fmt.Sprintf(":%s", port))

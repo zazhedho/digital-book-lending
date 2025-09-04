@@ -10,15 +10,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 )
 
 type LendingCtrl struct {
-	DBBookLending *gorm.DB
+	lendingService *services.LendingService
 }
 
-func NewLendingController(dbBookLend *gorm.DB) *LendingCtrl {
-	return &LendingCtrl{DBBookLending: dbBookLend}
+func NewLendingController(lendingService *services.LendingService) *LendingCtrl {
+	return &LendingCtrl{lendingService: lendingService}
 }
 
 // BorrowBook godoc
@@ -38,9 +37,8 @@ func (c *LendingCtrl) BorrowBook(ctx *gin.Context) {
 		logId     uuid.UUID
 		logPrefix string
 	)
-	lendingService := services.NewLendingService(c.DBBookLending)
 
-	authData := getAuthData(ctx)
+	authData := functions.GetAuthData(ctx)
 	userId := utils.InterfaceString(authData["user_id"])
 
 	logId = utils.GenerateLogId(ctx)
@@ -51,7 +49,7 @@ func (c *LendingCtrl) BorrowBook(ctx *gin.Context) {
 		return
 	}
 
-	newLendingRecord, err := lendingService.BorrowBook(bookId, userId)
+	newLendingRecord, err := c.lendingService.BorrowBook(bookId, userId)
 	if err != nil {
 		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; Error: %+v", logPrefix, err.Error()))
 		res := response.Response(http.StatusUnprocessableEntity, utils.MsgFail, logId, nil)
@@ -82,9 +80,8 @@ func (c *LendingCtrl) ReturnBook(ctx *gin.Context) {
 		logId     uuid.UUID
 		logPrefix string
 	)
-	lendingService := services.NewLendingService(c.DBBookLending)
 
-	authData := getAuthData(ctx)
+	authData := functions.GetAuthData(ctx)
 	userId := utils.InterfaceString(authData["user_id"])
 
 	logId = utils.GenerateLogId(ctx)
@@ -95,7 +92,7 @@ func (c *LendingCtrl) ReturnBook(ctx *gin.Context) {
 		return
 	}
 
-	if err := lendingService.ReturnBook(lendingId, userId); err != nil {
+	if err := c.lendingService.ReturnBook(lendingId, userId); err != nil {
 		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; Error: %+v", logPrefix, err.Error()))
 		res := response.Response(http.StatusUnprocessableEntity, utils.MsgFail, logId, nil)
 		res.Errors = response.Errors{Code: http.StatusUnprocessableEntity, Message: err.Error()}

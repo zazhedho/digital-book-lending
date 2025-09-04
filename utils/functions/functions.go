@@ -30,3 +30,11 @@ func ValidateUUID(ctx *gin.Context, logPrefix string, logID uuid.UUID) (string, 
 
 	return id, nil
 }
+
+func GetAuthData(ctx *gin.Context) map[string]interface{} {
+	jwtClaims, _ := ctx.Get(utils.CtxKeyAuthData)
+	if jwtClaims != nil {
+		return jwtClaims.(map[string]interface{})
+	}
+	return nil
+}

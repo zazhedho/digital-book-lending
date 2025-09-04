@@ -2,8 +2,9 @@ package app
 
 import (
 	"digital-book-lending/controller"
+	"digital-book-lending/interfaces"
 	"digital-book-lending/middleware"
-	"digital-book-lending/repository"
+	"digital-book-lending/services"
 	"digital-book-lending/utils"
 	"digital-book-lending/utils/response"
 	"errors"
@@ -19,11 +20,14 @@ import (
 )
 
 type Routes struct {
-	App           *gin.Engine
-	DBBookLending *gorm.DB
+	App            *gin.Engine
+	BookService    *services.BookService
+	UserService    *services.UserService
+	LendingService *services.LendingService
+	BlacklistRepo  interfaces.Blacklist
 }
 
-func NewRoutes() *Routes {
+func NewRoutes(bookService *services.BookService, userService *services.UserService, lendingService *services.LendingService, blacklistRepo interfaces.Blacklist) *Routes {
 	app := gin.Default()
 
 	app.Use(middleware.CORS())
@@ -41,14 +45,18 @@ func NewRoutes() *Routes {
 	app.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	return &Routes{
-		App: app,
+		App:            app,
+		BookService:    bookService,
+		UserService:    userService,
+		LendingService: lendingService,
+		BlacklistRepo:  blacklistRepo,
 	}
 }
 
 func (r *Routes) BookLending() {
-	ctrlUser := controller.NewUserController(r.DBBookLending)
-	ctrlBook := controller.NewBookController(r.DBBookLending)
-	ctrlLending := controller.NewLendingController(r.DBBookLending)
+	ctrlUser := controller.NewUserController(r.UserService)
+	ctrlBook := controller.NewBookController(r.BookService)
+	ctrlLending := controller.NewLendingController(r.LendingService)
 
 	apiV1 := r.App.Group("/api/v1")
 	{
@@ -103,8 +111,7 @@ func (r *Routes) AuthMiddleware() gin.HandlerFunc {
 		logPrefix += fmt.Sprintf("[%s][%s]", utils.InterfaceString(dataJWT["jti"]), utils.InterfaceString(dataJWT["user_id"]))
 
 		// Check if token is blacklisted
-		blacklistRepo := repository.NewBlacklistRepo(r.DBBookLending)
-		_, err = blacklistRepo.GetByToken(tokenString)
+		_, err = r.BlacklistRepo.GetByToken(tokenString)
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; blacklistRepo.GetByToken; Error: %+v", logPrefix, err))
 			res := response.Response(http.StatusInternalServerError, utils.MsgFail, logId, nil)

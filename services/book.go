@@ -1,8 +1,8 @@
 package services
 
 import (
+	"digital-book-lending/interfaces"
 	"digital-book-lending/models"
-	"digital-book-lending/repository"
 	"digital-book-lending/utils"
 	"digital-book-lending/utils/request"
 	"time"
@@ -11,18 +11,18 @@ import (
 )
 
 type BookService struct {
-	DB *gorm.DB
+	bookRepo interfaces.Book
+	DB       *gorm.DB
 }
 
-func NewBookService(db *gorm.DB) *BookService {
+func NewBookService(bookRepo interfaces.Book, db *gorm.DB) *BookService {
 	return &BookService{
-		DB: db,
+		bookRepo: bookRepo,
+		DB:       db,
 	}
 }
 
 func (s *BookService) CreateBook(req request.AddBook, username string) (models.Book, error) {
-	bookRepo := repository.NewBookRepo(s.DB)
-
 	book := models.Book{
 		ID:        utils.CreateUUID(),
 		Title:     req.Title,
@@ -34,7 +34,7 @@ func (s *BookService) CreateBook(req request.AddBook, username string) (models.B
 		CreatedBy: username,
 	}
 
-	if err := bookRepo.Store(book); err != nil {
+	if err := s.bookRepo.Store(book); err != nil {
 		return models.Book{}, err
 	}
 
@@ -42,7 +42,6 @@ func (s *BookService) CreateBook(req request.AddBook, username string) (models.B
 }
 
 func (s *BookService) UpdateBook(id string, req request.UpdateBook, username string) (int64, error) {
-	bookRepo := repository.NewBookRepo(s.DB)
 	timeNow := time.Now()
 
 	book := models.Book{
@@ -55,7 +54,7 @@ func (s *BookService) UpdateBook(id string, req request.UpdateBook, username str
 		UpdatedBy: username,
 	}
 
-	rows, err := bookRepo.Update(s.DB, models.Book{ID: id}, book)
+	rows, err := s.bookRepo.Update(s.DB, models.Book{ID: id}, book)
 	if err != nil {
 		return 0, err
 	}
@@ -64,9 +63,7 @@ func (s *BookService) UpdateBook(id string, req request.UpdateBook, username str
 }
 
 func (s *BookService) DeleteBook(id string, username string) error {
-	bookRepo := repository.NewBookRepo(s.DB)
-
-	if _, err := bookRepo.SoftDelete(models.Book{ID: id}, map[string]interface{}{"deleted_at": time.Now(), "deleted_by": username}); err != nil {
+	if _, err := s.bookRepo.SoftDelete(models.Book{ID: id}, map[string]interface{}{"deleted_at": time.Now(), "deleted_by": username}); err != nil {
 		return err
 	}
 
@@ -74,6 +71,5 @@ func (s *BookService) DeleteBook(id string, username string) error {
 }
 
 func (s *BookService) ListBooks(page, limit int, orderBy, orderDir, search string) ([]models.Book, int64, error) {
-	bookRepo := repository.NewBookRepo(s.DB)
-	return bookRepo.Fetch(page, limit, orderBy, orderDir, search)
+	return s.bookRepo.Fetch(page, limit, orderBy, orderDir, search)
 }

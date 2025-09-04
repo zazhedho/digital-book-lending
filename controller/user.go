@@ -17,12 +17,12 @@ import (
 )
 
 type UserCtrl struct {
-	DB *gorm.DB
+	userService *services.UserService
 }
 
-func NewUserController(db *gorm.DB) *UserCtrl {
+func NewUserController(userService *services.UserService) *UserCtrl {
 	return &UserCtrl{
-		DB: db,
+		userService: userService,
 	}
 }
 
@@ -43,7 +43,6 @@ func (cc *UserCtrl) Register(ctx *gin.Context) {
 		logPrefix string
 		req       request.Register
 	)
-	userService := services.NewUserService(cc.DB)
 
 	logId = utils.GenerateLogId(ctx)
 	logPrefix = fmt.Sprintf("[%s][UserController][Register]", logId)
@@ -57,7 +56,7 @@ func (cc *UserCtrl) Register(ctx *gin.Context) {
 		return
 	}
 
-	user, err := userService.RegisterUser(req)
+	user, err := cc.userService.RegisterUser(req)
 	if err != nil {
 		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; userService.RegisterUser; Error: %+v", logPrefix, err))
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
@@ -96,7 +95,6 @@ func (cc *UserCtrl) Login(ctx *gin.Context) {
 		logPrefix string
 		req       request.Login
 	)
-	userService := services.NewUserService(cc.DB)
 
 	logId = utils.GenerateLogId(ctx)
 	logPrefix = fmt.Sprintf("[%s][UserController][Login]", logId)
@@ -110,7 +108,7 @@ func (cc *UserCtrl) Login(ctx *gin.Context) {
 		return
 	}
 
-	token, err := userService.LoginUser(req, logId.String())
+	token, err := cc.userService.LoginUser(req, logId.String())
 	if err != nil {
 		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; userService.LoginUser; ERROR: %s;", logPrefix, err))
 		if errors.Is(err, gorm.ErrRecordNotFound) || reflect.DeepEqual(models.Users{}, models.Users{}) {
@@ -146,7 +144,6 @@ func (cc *UserCtrl) Logout(ctx *gin.Context) {
 		logId     uuid.UUID
 		logPrefix string
 	)
-	userService := services.NewUserService(cc.DB)
 
 	logId = utils.GenerateLogId(ctx)
 	logPrefix = fmt.Sprintf("[%s][UserController][Logout]", logId)
@@ -160,7 +157,7 @@ func (cc *UserCtrl) Logout(ctx *gin.Context) {
 		return
 	}
 
-	if err := userService.LogoutUser(token.(string)); err != nil {
+	if err := cc.userService.LogoutUser(token.(string)); err != nil {
 		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; userService.LogoutUser; Error: %+v", logPrefix, err))
 		res := response.Response(http.StatusInternalServerError, utils.MsgFail, logId, nil)
 		res.Error = err.Error()
