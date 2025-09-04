@@ -2,7 +2,7 @@ package controller
 
 import (
 	"digital-book-lending/models"
-	"digital-book-lending/repository"
+	"digital-book-lending/services"
 	"digital-book-lending/utils"
 	"digital-book-lending/utils/request"
 	"digital-book-lending/utils/response"
@@ -10,21 +10,19 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
 type UserCtrl struct {
-	DBBookLending *gorm.DB
+	DB *gorm.DB
 }
 
-func NewUserController(dbBookLend *gorm.DB) *UserCtrl {
+func NewUserController(db *gorm.DB) *UserCtrl {
 	return &UserCtrl{
-		DBBookLending: dbBookLend,
+		DB: db,
 	}
 }
 
@@ -44,16 +42,13 @@ func (cc *UserCtrl) Register(ctx *gin.Context) {
 		logId     uuid.UUID
 		logPrefix string
 		req       request.Register
-		err       error
-
-		user models.Users
 	)
-	userRepo := repository.NewUserRepo(cc.DBBookLending)
+	userService := services.NewUserService(cc.DB)
 
 	logId = utils.GenerateLogId(ctx)
 	logPrefix = fmt.Sprintf("[%s][UserController][Register]", logId)
 
-	if err = ctx.BindJSON(&req); err != nil {
+	if err := ctx.BindJSON(&req); err != nil {
 		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; BindJSON ERROR: %s;", logPrefix, err.Error()))
 
 		res := response.Response(http.StatusBadRequest, utils.InvalidRequest, logId, nil)
@@ -62,27 +57,9 @@ func (cc *UserCtrl) Register(ctx *gin.Context) {
 		return
 	}
 
-	hashedPwd, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	user, err := userService.RegisterUser(req)
 	if err != nil {
-		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; bcrypt.GenerateFromPassword; Error: %+v", logPrefix, err))
-
-		res := response.Response(http.StatusInternalServerError, utils.MsgFail, logId, nil)
-		res.Error = err.Error()
-		ctx.JSON(http.StatusInternalServerError, res)
-		return
-	}
-
-	user = models.Users{
-		Id:        utils.CreateUUID(),
-		Name:      req.Name,
-		Email:     req.Email,
-		Password:  string(hashedPwd),
-		Role:      utils.RoleMember,
-		CreatedAt: time.Now(),
-	}
-
-	if err = userRepo.Store(user); err != nil {
-		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; userRepo.Store; Error: %+v", logPrefix, err))
+		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; userService.RegisterUser; Error: %+v", logPrefix, err))
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; Error: email already exists", logPrefix))
 			res := response.Response(http.StatusBadRequest, utils.MsgExists, logId, nil)
@@ -100,7 +77,6 @@ func (cc *UserCtrl) Register(ctx *gin.Context) {
 	res := response.Response(http.StatusCreated, "User registered successfully", logId, user)
 	utils.WriteLog(utils.LogLevelDebug, fmt.Sprintf("%s; Success: %+v;", logPrefix, utils.JsonEncode(user)))
 	ctx.JSON(http.StatusCreated, res)
-	return
 }
 
 // Login godoc
@@ -119,16 +95,13 @@ func (cc *UserCtrl) Login(ctx *gin.Context) {
 		logId     uuid.UUID
 		logPrefix string
 		req       request.Login
-		err       error
-
-		user models.Users
 	)
-	userRepo := repository.NewUserRepo(cc.DBBookLending)
+	userService := services.NewUserService(cc.DB)
 
 	logId = utils.GenerateLogId(ctx)
 	logPrefix = fmt.Sprintf("[%s][UserController][Login]", logId)
 
-	if err = ctx.BindJSON(&req); err != nil {
+	if err := ctx.BindJSON(&req); err != nil {
 		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; BindJSON ERROR: %s;", logPrefix, err.Error()))
 
 		res := response.Response(http.StatusBadRequest, utils.InvalidRequest, logId, nil)
@@ -137,10 +110,10 @@ func (cc *UserCtrl) Login(ctx *gin.Context) {
 		return
 	}
 
-	user, err = userRepo.GetByEmail(req.Email)
+	token, err := userService.LoginUser(req, logId.String())
 	if err != nil {
-		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; userRepo.GetByEmail; ERROR: %s;", logPrefix, err))
-		if errors.Is(err, gorm.ErrRecordNotFound) || reflect.DeepEqual(user, models.Users{}) {
+		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; userService.LoginUser; ERROR: %s;", logPrefix, err))
+		if errors.Is(err, gorm.ErrRecordNotFound) || reflect.DeepEqual(models.Users{}, models.Users{}) {
 			res := response.Response(http.StatusBadRequest, utils.InvalidCred, logId, nil)
 			res.Errors = response.Errors{Code: http.StatusBadRequest, Message: utils.MsgCredential}
 			ctx.JSON(http.StatusBadRequest, res)
@@ -153,29 +126,9 @@ func (cc *UserCtrl) Login(ctx *gin.Context) {
 		return
 	}
 
-	if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
-		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; bcrypt.CompareHashAndPassword; ERROR: %s;", logPrefix, err))
-
-		res := response.Response(http.StatusBadRequest, utils.InvalidCred, logId, nil)
-		res.Errors = response.Errors{Code: http.StatusBadRequest, Message: utils.MsgCredential}
-		ctx.JSON(http.StatusBadRequest, res)
-		return
-	}
-
-	token, err := utils.GenerateJwt(&user, logId.String())
-	if err != nil {
-		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; GenerateJwt; ERROR: %s;", logPrefix, err))
-
-		res := response.Response(http.StatusInternalServerError, utils.MsgFail, logId, nil)
-		res.Error = err.Error()
-		ctx.JSON(http.StatusInternalServerError, res)
-		return
-	}
-
 	res := response.Response(http.StatusOK, "success", logId, fmt.Sprintf("token: %s", token))
 	utils.WriteLog(utils.LogLevelDebug, fmt.Sprintf("%s; Success: %+v;", logPrefix, utils.JsonEncode(token)))
 	ctx.JSON(http.StatusOK, res)
-	return
 }
 
 // Logout godoc
@@ -192,10 +145,8 @@ func (cc *UserCtrl) Logout(ctx *gin.Context) {
 	var (
 		logId     uuid.UUID
 		logPrefix string
-		err       error
 	)
-
-	blacklistRepo := repository.NewBlacklistRepo(cc.DBBookLending)
+	userService := services.NewUserService(cc.DB)
 
 	logId = utils.GenerateLogId(ctx)
 	logPrefix = fmt.Sprintf("[%s][UserController][Logout]", logId)
@@ -209,14 +160,8 @@ func (cc *UserCtrl) Logout(ctx *gin.Context) {
 		return
 	}
 
-	blacklist := models.Blacklist{
-		ID:        utils.CreateUUID(),
-		Token:     token.(string),
-		CreatedAt: time.Now(),
-	}
-
-	if err = blacklistRepo.Store(blacklist); err != nil {
-		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; blacklistRepo.Store; Error: %+v", logPrefix, err))
+	if err := userService.LogoutUser(token.(string)); err != nil {
+		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; userService.LogoutUser; Error: %+v", logPrefix, err))
 		res := response.Response(http.StatusInternalServerError, utils.MsgFail, logId, nil)
 		res.Error = err.Error()
 		ctx.JSON(http.StatusInternalServerError, res)
@@ -226,5 +171,4 @@ func (cc *UserCtrl) Logout(ctx *gin.Context) {
 	res := response.Response(http.StatusOK, "User logged out successfully", logId, nil)
 	utils.WriteLog(utils.LogLevelDebug, fmt.Sprintf("%s; Success: User logged out successfully", logPrefix))
 	ctx.JSON(http.StatusOK, res)
-	return
 }

@@ -1,8 +1,7 @@
 package controller
 
 import (
-	"digital-book-lending/models"
-	"digital-book-lending/repository"
+	"digital-book-lending/services"
 	"digital-book-lending/utils"
 	"digital-book-lending/utils/functions"
 	"digital-book-lending/utils/request"
@@ -12,7 +11,6 @@ import (
 	"net/http"
 	"reflect"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -20,12 +18,12 @@ import (
 )
 
 type BookCtrl struct {
-	DBBookLending *gorm.DB
+	DB *gorm.DB
 }
 
-func NewBookController(dbBookLend *gorm.DB) *BookCtrl {
+func NewBookController(db *gorm.DB) *BookCtrl {
 	return &BookCtrl{
-		DBBookLending: dbBookLend,
+		DB: db,
 	}
 }
 
@@ -54,18 +52,15 @@ func (c *BookCtrl) Create(ctx *gin.Context) {
 		logId     uuid.UUID
 		logPrefix string
 		req       request.AddBook
-		err       error
-
-		book models.Book
 	)
-	bookRepo := repository.NewBookRepo(c.DBBookLending)
+	bookService := services.NewBookService(c.DB)
 	authData := getAuthData(ctx)
 	username := utils.InterfaceString(authData["username"])
 
 	logId = utils.GenerateLogId(ctx)
 	logPrefix = fmt.Sprintf("[%s][Book][Create]", logId)
 
-	if err = ctx.BindJSON(&req); err != nil {
+	if err := ctx.BindJSON(&req); err != nil {
 		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; BindJSON ERROR: %s;", logPrefix, err.Error()))
 
 		res := response.Response(http.StatusBadRequest, utils.InvalidRequest, logId, nil)
@@ -74,19 +69,9 @@ func (c *BookCtrl) Create(ctx *gin.Context) {
 		return
 	}
 
-	book = models.Book{
-		ID:        utils.CreateUUID(),
-		Title:     req.Title,
-		Author:    req.Author,
-		ISBN:      req.ISBN,
-		Category:  req.Category,
-		Quantity:  req.Quantity,
-		CreatedAt: time.Now(),
-		CreatedBy: username,
-	}
-
-	if err = bookRepo.Store(book); err != nil {
-		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; bookRepo.Store; Error: %+v", logPrefix, err))
+	book, err := bookService.CreateBook(req, username)
+	if err != nil {
+		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; bookService.CreateBook; Error: %+v", logPrefix, err))
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			res := response.Response(http.StatusConflict, utils.MsgExists, logId, nil)
 			res.Errors = response.Errors{Code: http.StatusConflict, Message: fmt.Sprintf("book with ISBN: %s already exists", req.ISBN)}
@@ -103,7 +88,6 @@ func (c *BookCtrl) Create(ctx *gin.Context) {
 	res := response.Response(http.StatusCreated, "Add book successfully", logId, book)
 	utils.WriteLog(utils.LogLevelDebug, fmt.Sprintf("%s; Success: %+v;", logPrefix, utils.JsonEncode(book)))
 	ctx.JSON(http.StatusCreated, res)
-	return
 }
 
 // Update godoc
@@ -125,19 +109,15 @@ func (c *BookCtrl) Update(ctx *gin.Context) {
 		logId     uuid.UUID
 		logPrefix string
 		req       request.UpdateBook
-		err       error
-		rows      int64
-
-		book models.Book
 	)
-	bookRepo := repository.NewBookRepo(c.DBBookLending)
+	bookService := services.NewBookService(c.DB)
 	authData := getAuthData(ctx)
 	username := utils.InterfaceString(authData["username"])
 
 	logId = utils.GenerateLogId(ctx)
 	logPrefix = fmt.Sprintf("[%s][Book][Update]", logId)
 
-	if err = ctx.BindJSON(&req); err != nil {
+	if err := ctx.BindJSON(&req); err != nil {
 		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; BindJSON ERROR: %s;", logPrefix, err.Error()))
 
 		res := response.Response(http.StatusBadRequest, utils.InvalidRequest, logId, nil)
@@ -152,20 +132,13 @@ func (c *BookCtrl) Update(ctx *gin.Context) {
 	}
 	logPrefix += fmt.Sprintf("[%s][%s]", id, username)
 
-	timeNow := time.Now()
-	book.Title = req.Title
-	book.Author = req.Author
-	book.ISBN = req.ISBN
-	book.Category = req.Category
-	book.Quantity = req.Quantity
-	book.UpdatedAt = &timeNow
-	book.UpdatedBy = username
-	if rows, err = bookRepo.Update(c.DBBookLending, models.Book{ID: id}, book); err != nil {
-		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; bookRepo.Update; Error: %+v", logPrefix, err))
+	rows, err := bookService.UpdateBook(id, req, username)
+	if err != nil {
+		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; bookService.UpdateBook; Error: %+v", logPrefix, err))
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; ISBN: '%s' already exists", logPrefix, book.ISBN))
+			utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; ISBN: '%s' already exists", logPrefix, req.ISBN))
 			res := response.Response(http.StatusBadRequest, utils.MsgExists, logId, nil)
-			res.Errors = response.Errors{Code: http.StatusBadRequest, Message: fmt.Sprintf("ISBN: '%s' is already exists", book.ISBN)}
+			res.Errors = response.Errors{Code: http.StatusBadRequest, Message: fmt.Sprintf("ISBN: '%s' is already exists", req.ISBN)}
 			ctx.JSON(http.StatusBadRequest, res)
 			return
 		}
@@ -183,9 +156,8 @@ func (c *BookCtrl) Update(ctx *gin.Context) {
 	}
 
 	res := response.Response(http.StatusOK, fmt.Sprintf("Book with ID: '%s' updated successfully", id), logId, nil)
-	utils.WriteLog(utils.LogLevelDebug, fmt.Sprintf("%s; Book with ID: '%s' updated successfully; Data: %v", logPrefix, id, utils.JsonEncode(book)))
+	utils.WriteLog(utils.LogLevelDebug, fmt.Sprintf("%s; Book with ID: '%s' updated successfully; Data: %v", logPrefix, id, utils.JsonEncode(req)))
 	ctx.JSON(http.StatusOK, res)
-	return
 }
 
 // Delete godoc
@@ -204,9 +176,8 @@ func (c *BookCtrl) Delete(ctx *gin.Context) {
 	var (
 		logId     uuid.UUID
 		logPrefix string
-		err       error
 	)
-	bookRepo := repository.NewBookRepo(c.DBBookLending)
+	bookService := services.NewBookService(c.DB)
 	authData := getAuthData(ctx)
 	username := utils.InterfaceString(authData["username"])
 
@@ -219,19 +190,8 @@ func (c *BookCtrl) Delete(ctx *gin.Context) {
 	}
 	logPrefix += fmt.Sprintf("[%s][%s]", id, username)
 
-	// hard delete
-	//if _, err = bookRepo.Delete(models.Book{ID: id}); err != nil {
-	//	utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; bookRepo.Delete; Error: %+v", logPrefix, err))
-	//
-	//	res := response.Response(http.StatusInternalServerError, utils.MsgFail, logId, nil)
-	//	res.Error = err.Error()
-	//	ctx.JSON(http.StatusInternalServerError, res)
-	//	return
-	//}
-
-	// soft delete
-	if _, err = bookRepo.SoftDelete(models.Book{ID: id}, map[string]interface{}{"deleted_at": time.Now(), "deleted_by": username}); err != nil {
-		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; bookRepo.Delete; Error: %+v", logPrefix, err))
+	if err := bookService.DeleteBook(id, username); err != nil {
+		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; bookService.DeleteBook; Error: %+v", logPrefix, err))
 
 		res := response.Response(http.StatusInternalServerError, utils.MsgFail, logId, nil)
 		res.Error = err.Error()
@@ -242,7 +202,6 @@ func (c *BookCtrl) Delete(ctx *gin.Context) {
 	res := response.Response(http.StatusOK, fmt.Sprintf("Book with ID: '%s' deleted successfully", id), logId, nil)
 	utils.WriteLog(utils.LogLevelDebug, fmt.Sprintf("%s; Book with ID: '%s' deleted successfully", logPrefix, id))
 	ctx.JSON(http.StatusOK, res)
-	return
 }
 
 // List godoc
@@ -265,7 +224,7 @@ func (c *BookCtrl) List(ctx *gin.Context) {
 		logId     uuid.UUID
 		logPrefix string
 	)
-	bookRepo := repository.NewBookRepo(c.DBBookLending)
+	bookService := services.NewBookService(c.DB)
 	authData := getAuthData(ctx)
 	username := utils.InterfaceString(authData["username"])
 
@@ -285,7 +244,7 @@ func (c *BookCtrl) List(ctx *gin.Context) {
 	orderDir := ctx.DefaultQuery("order_direction", "desc")
 	search := ctx.Query("search")
 
-	books, totalData, err := bookRepo.Fetch(page, limit, orderBy, orderDir, search)
+	books, totalData, err := bookService.ListBooks(page, limit, orderBy, orderDir, search)
 	if err != nil {
 		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; Fetch; Error: %+v", logPrefix, err))
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -304,5 +263,4 @@ func (c *BookCtrl) List(ctx *gin.Context) {
 	res := response.PaginationResponse(http.StatusOK, int(totalData), page, limit, logId, books)
 	utils.WriteLog(utils.LogLevelInfo, fmt.Sprintf("%s; Success; List: %v", logPrefix, utils.JsonEncode(books)))
 	ctx.JSON(http.StatusOK, res)
-	return
 }
