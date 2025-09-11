@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"digital-book-lending/models"
 	"digital-book-lending/services"
 	"digital-book-lending/utils"
 	"digital-book-lending/utils/request"
@@ -111,7 +110,7 @@ func (cc *UserCtrl) Login(ctx *gin.Context) {
 	token, err := cc.userService.LoginUser(req, logId.String())
 	if err != nil {
 		utils.WriteLog(utils.LogLevelError, fmt.Sprintf("%s; userService.LoginUser; ERROR: %s;", logPrefix, err))
-		if errors.Is(err, gorm.ErrRecordNotFound) || reflect.DeepEqual(models.Users{}, models.Users{}) {
+		if errors.Is(err, gorm.ErrRecordNotFound) || err.Error() == utils.ErrHashPassword {
 			res := response.Response(http.StatusBadRequest, utils.InvalidCred, logId, nil)
 			res.Errors = response.Errors{Code: http.StatusBadRequest, Message: utils.MsgCredential}
 			ctx.JSON(http.StatusBadRequest, res)

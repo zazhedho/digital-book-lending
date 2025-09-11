@@ -35,3 +35,7 @@ const (
 	Borrowed = "borrowed"
 	Returned = "returned"
 )
+
+const (
+	ErrHashPassword = "crypto/bcrypt: hashedPassword is not the hash of the given password"
+)
